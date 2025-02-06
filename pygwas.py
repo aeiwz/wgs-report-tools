@@ -19,30 +19,34 @@ class MapGWASSNPs:
 
         # Create necessary directories
         self.report_path = os.path.join(output_file_path, "report")
-        self.report_fig_path = os.path.join(self.report_path, "fig")
         self.report_data_path = os.path.join(self.report_path, "data")
 
-        os.makedirs(self.report_fig_path, exist_ok=True)
+
         os.makedirs(self.report_data_path, exist_ok=True)
 
     def map_snps(self):
         print("Step 1: Reading VCF file...")
         vcf_columns = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLE"]
         vcf_df = pd.read_csv(self.vcf_file, comment="#", sep=r'\s+', names=vcf_columns)
+        print("VCF file PASS filter count: ", vcf_df[vcf_df["FILTER"] == "PASS"].shape[0])
 
         print("Step 2: Reading GWAS catalog...")
         gwas_df = pd.read_csv(self.gwas_file, low_memory=False)  # Prevent dtype warnings
+        print("GWAS catalog PASS : ", gwas_df.shape)
 
         print("Step 3: Normalizing chromosome identifiers...")
         vcf_df["CHROM"] = vcf_df["CHROM"].astype(str).str.replace('^chr', '', regex=True)
         gwas_df["CHR_ID"] = gwas_df["CHR_ID"].astype(str)
+        print('Normalizing chromosome identifiers PASS')
 
         print("Step 4: Ensuring position columns are strings...")
         vcf_df["POS"] = vcf_df["POS"].astype(str)
         gwas_df["CHR_POS"] = gwas_df["CHR_POS"].astype(str)
+        print('Ensuring position columns are strings PASS')
 
         print("Step 5: Merging VCF and GWAS data...")
         annotated_df = pd.merge(vcf_df, gwas_df, left_on=["CHROM", "POS"], right_on=["CHR_ID", "CHR_POS"], how="left")
+        print('Merging VCF and GWAS data PASS')
 
         annotated_df.dropna(subset=['DISEASE/TRAIT'], inplace=True)
         annotated_df = annotated_df[annotated_df["QUAL"] >= self.cut_off_qual]
@@ -536,7 +540,7 @@ class MapGWASSNPs:
         with open(output_path, 'w') as f:
             f.write(rendered_html)
 
-        print(f"Report saved to {output_path}")
+        #print(f"Report saved to {output_path}")
 
     def generate_report(self):
         self.prepare_report_data()
@@ -544,9 +548,10 @@ class MapGWASSNPs:
         print(f"Report saved to {os.path.join(self.report_path, 'GWAS_report.html')}")
 
 if __name__ == '__main__':
-    vcf_file = "VIP01/Barcode10/medaka-variant-out/medaka.annotated.vcf"
-    gwas_file = "VIP01/gwas_catalog_grouped.csv"
-    output_file = "VIP01/test"
+    vcf_file = "data/medaka.annotated.vcf"
+    gwas_file = "https://raw.githubusercontent.com/aeiwz/wgs-report-tools/main/data/gwas_catalog_grouped.csv"
+    #gwas_file = "data/gwas_catalog_grouped.csv"
+    output_file = "test"
 
     mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=0, filt_nr_disease=True)
     mapper.map_snps()
