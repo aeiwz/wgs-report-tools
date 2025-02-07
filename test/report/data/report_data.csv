@@ -41,7 +41,7 @@ Migraine - clinic-based,0.56,4e-06,6q25.2,rs2186141,RNU6-896P - HMGB3P19,Nervous
 Electrocardiogram morphology (amplitude at temporal datapoints),0.555249,3e-11,11q22.1,rs671333,ARHGAP42,Cardiovascular disease,55.5249
 Waist-to-hip ratio adjusted for BMI,0.5547,5e-14,2q14.2,rs332105,THORLNC - LINC01956,Body measurement,55.47
 IgA nephropathy,0.5479392320332094,8e-08,1p36.13,rs2240335,PADI4,Immune system disease,54.79392320332094
-Mean platelet volume,0.542183,2e-298,17q11.2,rs9891920,TAOK1,Hematological measurement,54.2183
+Mean platelet volume,0.542183,2.0000000000000002e-298,17q11.2,rs9891920,TAOK1,Hematological measurement,54.2183
 Depressive symptoms (MTAG),0.5313,7e-09,14q24.3,rs4553560,PROX2,Liver enzyme measurement,53.13
 Monocyte count,0.5097,9e-44,16q24.1,rs305064,LINC02132 - LINC01082,Other trait,50.970000000000006
 Highest math class taken (MTAG),0.5009,6e-20,6q16.1,rs12208753,MMS22L - MIR2113,Other trait,50.09
@@ -78,11 +78,11 @@ Longevity,0.37,1e-07,14q23.3,rs1950902,MTHFD1,Other trait,37.0
 Alanine aminotransferase levels,0.37,2e-09,19p13.11,rs11666808,IQCN,Liver enzyme measurement,37.0
 Metabolic biomarkers (multivariate analysis),0.37,9e-24,19p13.11,rs11666808,IQCN,Metabolic disease,37.0
 Self-reported math ability,0.3699,1e-08,16q23.3,rs4075464,CDH13,Other trait,36.99
-Myeloblastin levels,0.363884,1e-124,19p13.3,rs3786991,AZU1 - PRTN3,Liver enzyme measurement,36.3884
+Myeloblastin levels,0.363884,1.0000000000000001e-124,19p13.3,rs3786991,AZU1 - PRTN3,Liver enzyme measurement,36.3884
 Aspartate aminotransferase platelet ratio index in high alcohol intake,0.3502,2e-08,11q12.2,rs174566,"FADS1, FADS2",Hematological measurement,35.02
 Serum alkaline phosphatase levels,0.35,7e-65,11q12.2,rs174566,"FADS1, FADS2",Other trait,35.0
 IgG glycosylation,0.346381764494382,2e-08,6p21.32,rs1049110,HLA-DQB2,Immune system disease,34.6381764494382
-Vertex-wise sulcal depth,0.34,2.999999999999999e-47,10p11.23,rs2000099,ZNF438,Liver enzyme measurement,34.0
+Vertex-wise sulcal depth,0.34,2.9999999999999987e-47,10p11.23,rs2000099,ZNF438,Liver enzyme measurement,34.0
 Waist-to-hip ratio adjusted for BMI (joint analysis for main effect and physical activity interaction),0.3269,4e-09,5q13.3,rs167025,LINC01331,Body measurement,32.690000000000005
 Waist-to-hip ratio adjusted for body mass index,0.3269,6e-09,5q13.3,rs167025,LINC01331,Body measurement,32.690000000000005
 Waist-to-hip ratio adjusted for BMI in active individuals,0.3259,3e-06,5q13.3,rs167025,LINC01331,Nervous system disease,32.59
@@ -91,7 +91,7 @@ Cutaneous psoriasis,0.3201,8e-11,6q23.3,rs610604,TNFAIP3,Immune system disease,3
 Psoriatic arthritis,0.32,8e-09,6q23.3,rs610604,TNFAIP3,Other trait,32.0
 Delta-5 desaturase activity response to n3-polyunsaturated fat supplement,0.32,1e-12,11q12.2,rs174566,"FADS1, FADS2",Response to drug,32.0
 Risk-taking tendency (4-domain principal component model),0.2975,7e-10,3p14.2,rs10866054,CADPS,Other trait,29.75
-QRS duration,0.295492,4e-24,12q24.21,rs7966651,TBX3-AS1 - UBA52P7,Other trait,29.5492
+QRS duration,0.295492,4.0000000000000004e-24,12q24.21,rs7966651,TBX3-AS1 - UBA52P7,Other trait,29.5492
 Cigarettes smoked per day (MTAG),0.293,7e-16,1q21.3,rs2072659,CHRNB2,Immune system disease,29.299999999999997
 Ectonucleoside triphosphate diphosphohydrolase 5 levels,0.287053,1.9999999999999998e-32,14q24.3,rs1968105,PTGR2,Other trait,28.7053
 Serum levels of protein CLEC11A,0.2857,1e-16,19q13.33,rs62112533,CLEC11A - GPR32P1,Other trait,28.57
