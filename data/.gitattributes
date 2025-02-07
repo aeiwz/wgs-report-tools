@@ -1,1 +1,2 @@
 gwas_catalog_grouped.csv filter=lfs diff=lfs merge=lfs -text
+Group[[:space:]]of[[:space:]]disease[[:space:]]traits filter=lfs diff=lfs merge=lfs -text
