@@ -27,7 +27,28 @@ class MapGWASSNPs:
     def map_snps(self):
         print("Step 1: Reading VCF file...")
         vcf_columns = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLE"]
-        vcf_df = pd.read_csv(self.vcf_file, comment="#", sep=r'\s+', names=vcf_columns)
+        if vcf_file.endswith('.gz'):
+            vcf_df = pd.read_csv(self.vcf_file, compression='gzip', sep='\t', comment="#", names=vcf_columns)
+        else:
+            vcf_df = pd.read_csv(self.vcf_file, comment="#", sep='\t', names=vcf_columns)
+        # Function to classify variant type
+        def classify_variant(ref, alt):
+            ref_len = len(ref)
+            alt_len = len(alt)
+
+            if ref_len == 1 and alt_len == 1:
+                return "SNPs"
+            elif ref_len < alt_len:
+                return "Insertion"
+            elif ref_len > alt_len:
+                return "Deletion"
+            elif ref_len == alt_len and ref != alt:
+                return "MNPs"
+            else:
+                return "Complex Variation"
+        
+        # Apply classification to the DataFrame
+        vcf_df["TYPE"] = vcf_df.apply(lambda row: classify_variant(row["REF"], row["ALT"]), axis=1)
         print("VCF file PASS filter count: ", vcf_df[vcf_df["FILTER"] == "PASS"].shape[0])
 
         print("Step 2: Reading GWAS catalog...")
@@ -77,6 +98,8 @@ class MapGWASSNPs:
             'SNPS': 'first',
             'MAPPED_GENE': 'first',
             'Groups of Disease/Trait': 'first',
+            'MAPPED_TRAIT_URI': 'first',
+            'MAPPED_TRAIT_DESCRIPTION': 'first'
         })
 
         report_data['RISK ALLELE FREQUENCY'] = pd.to_numeric(report_data['RISK ALLELE FREQUENCY'], errors='coerce')
@@ -186,6 +209,7 @@ class MapGWASSNPs:
             icon.append(str(img))
 
         summary_text = f"This report includes {len(data['DISEASE/TRAIT'].unique())} unique diseases/traits analyzed."
+        
 
         # HTML Template
         html_template = r"""

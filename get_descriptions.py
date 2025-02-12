@@ -12,10 +12,13 @@ import os
 ols = ['EFO', 'MONDO', 'Orphanet']
 amigo = ['GO']
 hpo = ['HP']
-
+print("Ontologies covered: ", ols + amigo + hpo)
+print('Data will be saved to "data/gwas_database_with_description.csv.gz".')
 # Load dataset
 df = pd.read_csv('data/gwas_database.csv.gz', compression='gzip', low_memory=False)
 
+print(f"Loaded {len(df)} records.")
+# Define the path to the chromedriver
 # Output file path
 output_file = 'data/gwas_database_with_description.csv.gz'
 
@@ -65,7 +68,7 @@ for index, link in enumerate(tqdm(unique_links)):
         if len(link.split(',')) > 1:
             link = link.split(',')[0]
         driver.get(link)
-        driver.implicitly_wait(60)
+        driver.implicitly_wait(10)
 
         ontology = link.split('/')[-1].split('_')[0]
 
