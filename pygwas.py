@@ -42,8 +42,6 @@ class MapGWASSNPs:
                 return "Insertion"
             elif ref_len > alt_len:
                 return "Deletion"
-            elif ref_len == alt_len and ref != alt:
-                return "MNPs"
             else:
                 return "Complex Variation"
             
@@ -64,8 +62,8 @@ class MapGWASSNPs:
         print("GWAS catalog PASS : ", gwas_df.shape)
 
         print("Step 3: Normalizing chromosome identifiers...")
-        vcf_df["CHROM"] = vcf_df["CHROM"].astype(str).str.replace('^chr', '', regex=True)
-        gwas_df["CHR_ID"] = gwas_df["CHR_ID"].astype(str)
+        #vcf_df["CHROM"] = vcf_df["CHROM"].astype(str).str.replace('^chr', '', regex=True)
+        #gwas_df["CHR_ID"] = gwas_df["CHR_ID"].astype(str)
         print('Normalizing chromosome identifiers PASS')
 
         print("Step 4: Ensuring position columns are strings...")
@@ -208,7 +206,7 @@ class MapGWASSNPs:
                 img = file.read()
                 
                 
-            details.append((row['DISEASE/TRAIT'], row['REGION'], row['SNPS'], row['MAPPED_GENE'], row['Groups of Disease/Trait']))
+            details.append((row['DISEASE/TRAIT'], row['REGION'], row['SNPS'], row['MAPPED_GENE'], row['Groups of Disease/Trait'], row['MAPPED_TRAIT_DESCRIPTION']))
             embedded_svgs.append(svg_string)
             icon.append(str(img))
 
@@ -216,7 +214,82 @@ class MapGWASSNPs:
         vcf_report = self.vcf_report
         total_variant = vcf_report.shape[0]
         type_of_varients = vcf_report['TYPE'].value_counts()
-        type_of_varients_percentage = type_of_varients / total_variant * 100
+        type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2)
+
+        import plotly.graph_objects as go
+
+        svg_circle = []
+
+        for i in type_of_varients_percentage.index:    
+            # Data for the single progress bar
+            value = type_of_varients_percentage[i]  # Percentage of progress
+            color = {'Complex Variation':'FF9999', 'Deletion':'FF7F3E', 'Insertion':'3D527D', 'SNPs':'FFB854'}  # Custom color for progress
+
+            #description = "DUIS AUTE IRURE DOL ORIN REPREHENDERIT IN VELIT ESSE CILLUM FUGIAT NULLA PARI"
+
+            # Create the pie chart (donut chart)
+            fig2 = go.Figure(go.Pie(
+                values=[value, 100 - value],  # Progress and remaining part
+                labels=["", ""],  # Hide labels
+                hole=0.6,  # Creates a donut shape
+                direction="clockwise",
+                marker=dict(colors=[color[i], "lightgray"]),  # Custom color and gray for remaining
+                textinfo="none",  # Hide Pie chart labels
+                showlegend=False
+            ))
+
+            # Add percentage text inside the donut chart
+            fig2.add_annotation(
+                text=f"<b>{value}%</b>", showarrow=False,
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, font=dict(size=24)
+            )
+
+            # Add label below the chart
+            fig2.add_annotation(
+<<<<<<< Updated upstream
+                text=f'<b>{type_of_varients[i]:,.0f} Positions in your genome</b>', showarrow=False,
+=======
+                text=f'<b>{type_of_varients[i]:.0f} Positions in your genome</b>', showarrow=False,
+>>>>>>> Stashed changes
+                xref="paper", yref="paper",
+                x=0.5, y=-0.15, font=dict(size=14, color="black")
+            )
+
+            # Layout adjustments
+            fig2.update_layout(
+<<<<<<< Updated upstream
+                title=f"<b>{i}</b>",
+=======
+                title=f"<b>{i}</b",
+>>>>>>> Stashed changes
+                height=400, width=400,
+                showlegend=False
+            )
+
+            #Set title to center and below of the chart
+            fig2.update_layout(
+                title_x=0.5,
+                title_y=0.05
+            )
+            fig2.update_layout(
+                title_x=0.5
+            )
+
+            #Background transparency
+            fig2.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
+
+
+
+
+            # Display the figure
+            svg_bytes = pio.to_image(fig2, format="svg")
+            svg_string = svg_bytes.decode("utf-8")  # Convert bytes to string
+            svg_circle.append(svg_string)
+
         
 
         # HTML Template
@@ -265,7 +338,7 @@ class MapGWASSNPs:
                         margin-top: 30px;
                     }
                     .icon-text svg {
-                        width: 100px;
+                        width: 250px;
                         height: auto;
                         border-radius: 50%;
                         margin-right: 20px;
@@ -308,8 +381,39 @@ class MapGWASSNPs:
                         height: 2px;
                         background: #ddd;
                         margin: 40px 0;
-
-
+                    }
+                    .title {
+                        font-size: 80px;
+                        font-weight: bold;
+                        color: black;
+                        text-align: center;
+                    }
+                    .subtitle {
+                        font-size: 28px;
+                        color: black;
+                        text-align: center;
+                    }
+                    .variants {
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        flex-direction: row;
+<<<<<<< Updated upstream
+                        flex-flow: space-evenly;
+=======
+>>>>>>> Stashed changes
+                        margin: 20px;
+                    }
+                    .variant {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        margin-bottom: 10px;
+<<<<<<< Updated upstream
+                        align-self: auto | flex-start | flex-end | center | baseline | stretch;
+=======
+>>>>>>> Stashed changes
+                    }
                 </style>
                                 <script>
                     function resizeChart() {
@@ -484,7 +588,6 @@ class MapGWASSNPs:
                     <div>
                     <h1>Whole Genome Analysis Report</h1>
                     <p>This report is for research use only</p>
-                    <p>{{ summary }}</p>
                     <h2>Disclaimer</h2>
                         <p>The service provided by Khon Kaen University National
                             Phenome Institute (KKUNPhI) are currently for research use
@@ -518,16 +621,45 @@ class MapGWASSNPs:
                             <p><b>Alleles:</b> An allele is a variant form of a gene found at a specific position (locus)
                                 on a chromosome. Each allele is inherited, one from each parent.
                             </p>
-                            <p><b>Mapped Gene:</b> Genes mapped near or overlapping the SNP.
+                            <p><b>Mapped Gene:</b> Genes mapped near or overlapping the SNPs.
                             </p>
                             <p><b>Chromosomal region:</b> The genomic region associated with the trait or disease.
                             </p>
                             <p><b>Risk Allele Frequency (%):</b> The frequency of the risk allele in the population.
                             </p>
 
+                            
+                            <div class="title">{{count_variant}}</div>
+                            <div class="subtitle">Variant has been found in your genome</div>
+
+                            <div class="variants">
+                            <div class="variant">
+                                {{variant_1}}
+                            </div>
+                            <div class="variant">
+                                {{variant_2}}
+                            </div>
+                            <div class="variant">
+                                {{variant_3}}
+                            </div>
+                            <div class="variant">
+                                {{variant_4}}
+                            </div>
+                        </div>
                     </div>
-                {% for (title_, region_, snps_, mapped_gene_, group_trait_), svg_, icon_ in data_source %}
+                {% for (title_, region_, snps_, mapped_gene_, group_trait_, description_trait_), svg_, icon_ in data_source %}
+<<<<<<< Updated upstream
+                    <div class="information-item">
                     <h2>{{ title_ }}</h2>
+                    </div>
+                    <div class="information-item">
+                    <p>{{ description_trait_ }}</p>
+                    </div>
+                    <div class="information-item">
+=======
+                    <h2>{{ title_ }}</h2>
+                    <p>{{ description_trait_ }}</p>
+>>>>>>> Stashed changes
                     <div class="icon-text">
                         {{icon_ | safe }}
                     </div>
@@ -535,7 +667,7 @@ class MapGWASSNPs:
                     <p><b>SNPs:</b> {{ snps_ }}</p>
                     <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
                     <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
-                    
+
                     <div class="chart-container">
                         <div class="chart" id="chart_{{ loop.index }}">
                             {{ svg_ | safe }}
@@ -592,7 +724,12 @@ class MapGWASSNPs:
         """
 
         template = Template(html_template)
-        rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), summary=summary_text)
+<<<<<<< Updated upstream
+        rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), count_variant=f'{total_variant:,.0f}',
+=======
+        rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), count_variant=total_variant,
+>>>>>>> Stashed changes
+                                        variant_1 = svg_circle[0], variant_2 = svg_circle[1], variant_3 = svg_circle[2], variant_4 = svg_circle[3])
 
         with open(output_path, 'w') as f:
             f.write(rendered_html)
@@ -607,9 +744,9 @@ class MapGWASSNPs:
 if __name__ == '__main__':
     vcf_file = "data/medaka.annotated.vcf"
     #gwas_file = "https://raw.githubusercontent.com/aeiwz/wgs-report-tools/main/data/gwas_catalog_grouped.csv"
-    gwas_file = "data/gwas_database.csv.gz"
+    gwas_file = "data/gwas_database_with_description_expanded.csv.gz"
     output_file = "test"
 
-    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=0, filt_nr_disease=True)
+    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=30, filt_nr_disease=True)
     mapper.map_snps()
     mapper.generate_report()
