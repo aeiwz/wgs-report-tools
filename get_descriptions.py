@@ -15,7 +15,7 @@ hpo = ['HP']
 print("Ontologies covered: ", ols + amigo + hpo)
 print('Data will be saved to "data/gwas_database_with_description.csv.gz".')
 # Load dataset
-df = pd.read_csv('data/gwas_database.csv.gz', compression='gzip', low_memory=False)
+df = pd.read_csv('data/gwas_database_with_description.csv.gz', compression='gzip', low_memory=False)
 
 print(f"Loaded {len(df)} records.")
 # Define the path to the chromedriver
@@ -68,14 +68,30 @@ for index, link in enumerate(tqdm(unique_links)):
         if len(link.split(',')) > 1:
             link = link.split(',')[0]
         driver.get(link)
-        driver.implicitly_wait(10)
+        driver.implicitly_wait(30)
 
         ontology = link.split('/')[-1].split('_')[0]
 
         if ontology in ols:
-            text = driver.find_element(By.CSS_SELECTOR, "p.pb-3").text
+            try:
+                text = driver.find_element(By.CSS_SELECTOR, "p.pb-3").text
+            except NoSuchElementException:
+                try:
+                    text = driver.find_element(By.XPATH, "//*[@id='root']/div/main/div/div[3]/div[2]/details[1]/div/div[1]/p/span/text()").text
+                except NoSuchElementException:
+                    try:
+                        text = driver.find_element(By.XPATH, "d//*[@id='root']/div/main/div/div[2]/div[1]/div[3]").text
+                    except NoSuchElementException:
+                        text = 'Description not found'
+                    
         elif ontology in amigo:
-            text = driver.find_element(By.XPATH, "/html/body/div[2]/div[2]/div[2]/dl/dd[6]").text
+            try:
+                text = driver.find_element(By.XPATH, "/html/body/div[2]/div[2]/div[2]/dl/dd[6]").text
+            except NoSuchElementException:
+                try:
+                    text = driver.find_element(By.XPATH, "/html/body/div[2]/div[2]/div[2]/dl/dd[6]/text()[1]").text
+                except NoSuchElementException:
+                    text = 'Description not found'
         elif ontology in hpo:
             text = driver.find_element(By.XPATH, "/html/body/app-root/mat-sidenav-container/mat-sidenav-content/div/app-term/div/div/div/div[2]/mat-card/mat-card-content/div/div[2]/p").text
         else:

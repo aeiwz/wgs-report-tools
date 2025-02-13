@@ -46,9 +46,13 @@ class MapGWASSNPs:
                 return "MNPs"
             else:
                 return "Complex Variation"
+            
+        
         
         # Apply classification to the DataFrame
         vcf_df["TYPE"] = vcf_df.apply(lambda row: classify_variant(row["REF"], row["ALT"]), axis=1)
+        
+        self.vcf_report = vcf_df.copy()
         print("VCF file PASS filter count: ", vcf_df[vcf_df["FILTER"] == "PASS"].shape[0])
 
         print("Step 2: Reading GWAS catalog...")
@@ -209,6 +213,10 @@ class MapGWASSNPs:
             icon.append(str(img))
 
         summary_text = f"This report includes {len(data['DISEASE/TRAIT'].unique())} unique diseases/traits analyzed."
+        vcf_report = self.vcf_report
+        total_variant = vcf_report.shape[0]
+        type_of_varients = vcf_report['TYPE'].value_counts()
+        type_of_varients_percentage = type_of_varients / total_variant * 100
         
 
         # HTML Template
