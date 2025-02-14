@@ -213,8 +213,8 @@ class MapGWASSNPs:
         summary_text = f"This report includes {len(data['DISEASE/TRAIT'].unique())} unique diseases/traits analyzed."
         vcf_report = self.vcf_report
         total_variant = vcf_report.shape[0]
-        type_of_varients = vcf_report['TYPE'].value_counts().sort_index(by=['SNPs', 'DEL', 'INS', 'COMPLEX'])
-        type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2).sort_index(by=['SNPs', 'DEL', 'INS', 'COMPLEX'])
+        type_of_varients = vcf_report['TYPE']
+        type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2)
 
         import plotly.graph_objects as go
 
