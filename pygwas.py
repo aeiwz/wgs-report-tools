@@ -213,8 +213,9 @@ class MapGWASSNPs:
         summary_text = f"This report includes {len(data['DISEASE/TRAIT'].unique())} unique diseases/traits analyzed."
         vcf_report = self.vcf_report
         total_variant = vcf_report.shape[0]
-        type_of_varients = vcf_report['TYPE']
+        type_of_varients = vcf_report['TYPE'].value_counts()
         type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2)
+
 
         import plotly.graph_objects as go
 
@@ -331,12 +332,15 @@ class MapGWASSNPs:
                         display: flex;
                         align-items: center;
                         margin-top: 30px;
+                        flex-direction: row;
                     }
                     .icon-text svg {
                         width: 250px;
                         height: auto;
                         border-radius: 50%;
                         margin-right: 20px;
+                        display: flex;
+                        flex-direction: row;
                         }
                     .chart-container {
                         text-align: center;
@@ -406,24 +410,23 @@ class MapGWASSNPs:
                         flex: 1 1 auto;
                         flex-wrap: wrap;
                     }
-                    .positions_information {
+                    .position_infomation {
                         display: flex;
-                        justify-content: center;
                         align-items: center;
-                        flex-direction: row;
-                        flex-flow: space-evenly;
-                        margin: 20px;
-                        flex-wrap: wrap;
-                        }
+                        justify-content: flex-start;
+                        gap: 20px;
+                    }
+
+                    .icon-container {
+                        flex-shrink: 0; /* Prevents icon from shrinking */
+                    }
+
                     .position_inside {
                         display: flex;
-                        align-items: left;
-                        gap: 10px;
-                        margin-bottom: 10px;
-                        align-self: auto | flex-start | flex-end | center | baseline | stretch;
-                        flex: 1 1 auto;
-                        flex-wrap: wrap;
                         flex-direction: column;
+                        gap: 5px;
+                    }
+
                     }
                 </style>
                                 <script>
@@ -666,25 +669,26 @@ class MapGWASSNPs:
                     <p>{{ description_trait_ }}</p>
 
                     <div class="position_infomation">
-                        <div class="position_inside">
-                            <div class="icon-text">
+                        <div class="icon-text">
+                            <div class="icon-container">
                                 {{icon_ | safe }}
                             </div>
-                        </div>
                             <div class="position_inside">
-                            <p><b>Region:</b> {{ region_ }}</p>
-                            <p><b>SNPs:</b> {{ snps_ }}</p>
-                            <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
-                            <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
-                        </div>
-
-                        <div class="chart-container">
-                            <div class="chart" id="chart_{{ loop.index }}">
-                                {{ svg_ | safe }}
+                                <p><b>Region:</b> {{ region_ }}</p>
+                                <p><b>SNPs ID:</b> {{ snps_ }}</p>
+                                <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
+                                <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
                             </div>
-                            <button class="download-btn" onclick="downloadChart('{{ loop.index }}', '{{ title_ }}')">Download Chart</button>
                         </div>
-                    </div>                    
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart" id="chart_{{ loop.index }}">
+                            {{ svg_ | safe }}
+                        </div>
+                        <button class="download-btn" onclick="downloadChart('{{ loop.index }}', '{{ title_ }}')">Download Chart</button>
+                    </div>
+                   
                     <hr>
                 {% endfor %}
 
@@ -754,6 +758,6 @@ if __name__ == '__main__':
     gwas_file = "data/gwas_database_with_description_expanded.csv.gz"
     output_file = "test"
 
-    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=30, filt_nr_disease=True)
+    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=10, filt_nr_disease=True)
     mapper.map_snps()
     mapper.generate_report()
