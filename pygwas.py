@@ -647,7 +647,7 @@ class MapGWASSNPs:
 
                             
                             <div class="title">{{count_variant}}</div>
-                            <div class="subtitle">Variant has been found in your genome</div>
+                            <div class="subtitle">Variants has been found in your genome</div>
 
                             <div class="variants">
                             <div class="variant">
