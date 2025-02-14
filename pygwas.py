@@ -39,11 +39,11 @@ class MapGWASSNPs:
             if ref_len == 1 and alt_len == 1:
                 return "SNPs"
             elif ref_len < alt_len:
-                return "Insertion"
+                return "INS"
             elif ref_len > alt_len:
-                return "Deletion"
+                return "DEL"
             else:
-                return "Complex Variation"
+                return "COMPLEX"
             
         
         
@@ -213,8 +213,8 @@ class MapGWASSNPs:
         summary_text = f"This report includes {len(data['DISEASE/TRAIT'].unique())} unique diseases/traits analyzed."
         vcf_report = self.vcf_report
         total_variant = vcf_report.shape[0]
-        type_of_varients = vcf_report['TYPE'].value_counts()
-        type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2)
+        type_of_varients = vcf_report['TYPE'].value_counts().sort_index(by=['SNPs', 'DEL', 'INS', 'COMPLEX'])
+        type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2).sort_index(by=['SNPs', 'DEL', 'INS', 'COMPLEX'])
 
         import plotly.graph_objects as go
 
@@ -223,7 +223,7 @@ class MapGWASSNPs:
         for i in type_of_varients_percentage.index:    
             # Data for the single progress bar
             value = type_of_varients_percentage[i]  # Percentage of progress
-            color = {'Complex Variation':'FF9999', 'Deletion':'FF7F3E', 'Insertion':'3D527D', 'SNPs':'FFB854'}  # Custom color for progress
+            color = {'COMPLEX':'FF9999', 'DEL':'FF7F3E', 'INS':'3D527D', 'SNPs':'FFB854'}  # Custom color for progress
 
             #description = "DUIS AUTE IRURE DOL ORIN REPREHENDERIT IN VELIT ESSE CILLUM FUGIAT NULLA PARI"
 
@@ -247,22 +247,17 @@ class MapGWASSNPs:
 
             # Add label below the chart
             fig2.add_annotation(
-<<<<<<< Updated upstream
                 text=f'<b>{type_of_varients[i]:,.0f} Positions in your genome</b>', showarrow=False,
-=======
-                text=f'<b>{type_of_varients[i]:.0f} Positions in your genome</b>', showarrow=False,
->>>>>>> Stashed changes
+
+
+
                 xref="paper", yref="paper",
                 x=0.5, y=-0.15, font=dict(size=14, color="black")
             )
 
             # Layout adjustments
             fig2.update_layout(
-<<<<<<< Updated upstream
                 title=f"<b>{i}</b>",
-=======
-                title=f"<b>{i}</b",
->>>>>>> Stashed changes
                 height=400, width=400,
                 showlegend=False
             )
@@ -398,21 +393,37 @@ class MapGWASSNPs:
                         justify-content: center;
                         align-items: center;
                         flex-direction: row;
-<<<<<<< Updated upstream
                         flex-flow: space-evenly;
-=======
->>>>>>> Stashed changes
                         margin: 20px;
+                        flex-wrap: wrap;
                     }
                     .variant {
                         display: flex;
                         align-items: center;
                         gap: 10px;
                         margin-bottom: 10px;
-<<<<<<< Updated upstream
                         align-self: auto | flex-start | flex-end | center | baseline | stretch;
-=======
->>>>>>> Stashed changes
+                        flex: 1 1 auto;
+                        flex-wrap: wrap;
+                    }
+                    .positions_information {
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        flex-direction: row;
+                        flex-flow: space-evenly;
+                        margin: 20px;
+                        flex-wrap: wrap;
+                        }
+                    .position_inside {
+                        display: flex;
+                        align-items: left;
+                        gap: 10px;
+                        margin-bottom: 10px;
+                        align-self: auto | flex-start | flex-end | center | baseline | stretch;
+                        flex: 1 1 auto;
+                        flex-wrap: wrap;
+                        flex-direction: column;
                     }
                 </style>
                                 <script>
@@ -618,6 +629,9 @@ class MapGWASSNPs:
                                 population. SNPs can influence traits, disease susceptibility, and drug
                                 response.
                             </p>
+                            <p><b>Insertion (INS):</b> An insertion is the addition of one or more nucleotides to a DNA sequence.</p>
+                            <p><b>Deletion (DEL):</b> A deletion is the removal of one or more nucleotides from a DNA sequence.</p>
+                            <p><b>Complex (COMPLEX):</b> A complex variant is a combination of insertions, deletions, and substitutions</p>
                             <p><b>Alleles:</b> An allele is a variant form of a gene found at a specific position (locus)
                                 on a chromosome. Each allele is inherited, one from each parent.
                             </p>
@@ -634,47 +648,43 @@ class MapGWASSNPs:
 
                             <div class="variants">
                             <div class="variant">
-                                {{variant_1}}
+                                {{variant_1 | safe}}
                             </div>
                             <div class="variant">
-                                {{variant_2}}
+                                {{variant_2 | safe}}
                             </div>
                             <div class="variant">
-                                {{variant_3}}
+                                {{variant_3 | safe}}
                             </div>
                             <div class="variant">
-                                {{variant_4}}
+                                {{variant_4 | safe}}
                             </div>
                         </div>
                     </div>
                 {% for (title_, region_, snps_, mapped_gene_, group_trait_, description_trait_), svg_, icon_ in data_source %}
-<<<<<<< Updated upstream
-                    <div class="information-item">
-                    <h2>{{ title_ }}</h2>
-                    </div>
-                    <div class="information-item">
-                    <p>{{ description_trait_ }}</p>
-                    </div>
-                    <div class="information-item">
-=======
                     <h2>{{ title_ }}</h2>
                     <p>{{ description_trait_ }}</p>
->>>>>>> Stashed changes
-                    <div class="icon-text">
-                        {{icon_ | safe }}
-                    </div>
-                    <p><b>Region:</b> {{ region_ }}</p>
-                    <p><b>SNPs:</b> {{ snps_ }}</p>
-                    <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
-                    <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
 
-                    <div class="chart-container">
-                        <div class="chart" id="chart_{{ loop.index }}">
-                            {{ svg_ | safe }}
+                    <div class="position_infomation">
+                        <div class="position_inside">
+                            <div class="icon-text">
+                                {{icon_ | safe }}
+                            </div>
                         </div>
-                        <button class="download-btn" onclick="downloadChart('{{ loop.index }}', '{{ title_ }}')">Download Chart</button>
-                    </div>
-                    
+                            <div class="position_inside">
+                            <p><b>Region:</b> {{ region_ }}</p>
+                            <p><b>SNPs:</b> {{ snps_ }}</p>
+                            <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
+                            <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart" id="chart_{{ loop.index }}">
+                                {{ svg_ | safe }}
+                            </div>
+                            <button class="download-btn" onclick="downloadChart('{{ loop.index }}', '{{ title_ }}')">Download Chart</button>
+                        </div>
+                    </div>                    
                     <hr>
                 {% endfor %}
 
@@ -724,11 +734,8 @@ class MapGWASSNPs:
         """
 
         template = Template(html_template)
-<<<<<<< Updated upstream
         rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), count_variant=f'{total_variant:,.0f}',
-=======
-        rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), count_variant=total_variant,
->>>>>>> Stashed changes
+
                                         variant_1 = svg_circle[0], variant_2 = svg_circle[1], variant_3 = svg_circle[2], variant_4 = svg_circle[3])
 
         with open(output_path, 'w') as f:
