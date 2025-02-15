@@ -251,9 +251,9 @@ class MapGWASSNPs:
 
             # Add label below the chart
             fig2.add_annotation(
-                text=f'<b>{type_of_varients[i]:,.0f} Positions in your genome</b>', showarrow=False,
+                text=f'<b>{type_of_varients[i]:,.0f} Positions</b>', showarrow=False,
                 xref="paper", yref="paper",
-                x=0.5, y=-0.15, font=dict(size=26, color="black")
+                x=0.5, y=-0.38, font=dict(size=22)
             )
 
             # Layout adjustments
@@ -266,10 +266,8 @@ class MapGWASSNPs:
             #Set title to center and below of the chart
             fig2.update_layout(
                 title_x=0.5,
-                title_y=0.05
-            )
-            fig2.update_layout(
-                title_x=0.5
+                title_y=0.1,
+                font=dict(size=18)
             )
 
             #Background transparency
@@ -321,7 +319,7 @@ class MapGWASSNPs:
                         padding: 20px;
                         border-radius: 8px;
                         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-                        font-size: 50px;
+                        font-size: 45px;
                         margin: 0;
                     }
                     h2 {
@@ -330,11 +328,11 @@ class MapGWASSNPs:
                         border-bottom: 3px solid #2D3B71;
                         padding-bottom: 5px;
                         display: inline-block;
-                        font-size: 36px;
+                        font-size: 32px;
                     }
                     p {
                         margin: 10px 0;
-                        font-size: 28px;
+                        font-size: 22px;
                         color: rgb(87, 107, 145);
                     }
                     p2 {
@@ -395,9 +393,7 @@ class MapGWASSNPs:
                         margin-top: 0px;
                         margin-bottom: 0px;
                         flex-grow: 2;
-                        flex: 300px;
-                        height: 300%;
-                        width: auto;
+                        flex: 250px;
                         padding: 80px;
                     }
                     hr {
@@ -437,6 +433,7 @@ class MapGWASSNPs:
                         align-self: auto | flex-start | flex-end | center | baseline | stretch;
                         flex: 1 1 auto;
                         flex-wrap: wrap;
+                        width: 300px;
                     }
                     .position_infomation {
                         display: flex;
@@ -529,7 +526,7 @@ class MapGWASSNPs:
 
                             
                             <div class="title">{{count_variant}}</div>
-                            <div class="subtitle">Variants has been found in your genome</div>
+                            <div class="subtitle">Variants have been found in your genome.</div>
 
                             <div class="variants">
                             <div class="variant">
