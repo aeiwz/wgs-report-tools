@@ -244,10 +244,11 @@ class MapGWASSNPs:
                 showlegend=False
             ))
 
+
             # Second (smaller gray) pie chart
             fig2.add_trace(go.Pie(
                 values=[100 - value, value],  # Swap values to make gray smaller
-                hole=0.68,  # Slightly larger hole to make it thinner
+                hole=0.7,  # Slightly larger hole to make it thinner
                 marker=dict(colors=["lightgray", "rgba(0,0,0,0)"]),  # Hide the second color
                 textinfo="none",
                 showlegend=False
@@ -328,7 +329,7 @@ class MapGWASSNPs:
                         padding: 20px;
                         border-radius: 8px;
                         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-                        font-size: 45px;
+                        font-size: clamp(2rem, 3vw, 6rem);
                         margin: 0;
                     }
                     h2 {
@@ -548,6 +549,8 @@ class MapGWASSNPs:
                             <p><b>Chromosomal region:</b> The genomic region associated with the trait or disease.</p>
                             <p><b>Risk Allele Frequency (%):</b> The frequency of the risk allele in the population.</p>
                 </div>
+                <hr>
+                
                 {% for (title_, region_, snps_, mapped_gene_, group_trait_, description_trait_), svg_, icon_ in data_source %}
                     <div class="chart-container">
                     <h2>{{ title_ }}</h2>
