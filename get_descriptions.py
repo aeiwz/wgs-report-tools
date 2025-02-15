@@ -68,7 +68,7 @@ for index, link in enumerate(tqdm(unique_links)):
 
     try:
         if len(link.split(',')) > 1:
-            link = link.split(',')[0]
+            link = link.split(',')[-1]
         driver.get(link)
         driver.implicitly_wait(5)
 
