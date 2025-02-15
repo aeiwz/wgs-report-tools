@@ -232,15 +232,27 @@ class MapGWASSNPs:
             #description = "DUIS AUTE IRURE DOL ORIN REPREHENDERIT IN VELIT ESSE CILLUM FUGIAT NULLA PARI"
 
             # Create the pie chart (donut chart)
-            fig2 = go.Figure(go.Pie(
-                values=[value, 100 - value],  # Progress and remaining part
-                labels=["", ""],  # Hide labels
-                hole=0.6,  # Creates a donut shape
+            fig2 = go.Figure()
+
+            # First (colored) pie chart
+            fig2.add_trace(go.Pie(
+                values=[value, 100 - value],  
+                hole=0.6,
+                marker=dict(colors=[color[i], "rgba(0,0,0,0)"]),  # Hide gray part here
                 direction="clockwise",
-                marker=dict(colors=[color[i], "lightgray"]),  # Custom color and gray for remaining
-                textinfo="none",  # Hide Pie chart labels
+                textinfo="none",
                 showlegend=False
             ))
+
+            # Second (smaller gray) pie chart
+            fig2.add_trace(go.Pie(
+                values=[100 - value, value],  # Swap values to make gray smaller
+                hole=0.68,  # Slightly larger hole to make it thinner
+                marker=dict(colors=["lightgray", "rgba(0,0,0,0)"]),  # Hide the second color
+                textinfo="none",
+                showlegend=False
+            ))
+
 
             # Add percentage text inside the donut chart
             fig2.add_annotation(
@@ -275,9 +287,6 @@ class MapGWASSNPs:
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)'
             )
-
-
-
 
             # Display the figure
             svg_bytes = pio.to_image(fig2, format="svg")
@@ -403,17 +412,17 @@ class MapGWASSNPs:
                         margin: 40px 0;
                     }
                     .title {
-                        font-size: 200px;
+                        font-size: clamp(8rem, 14vw, 15rem);
                         font-weight: bold;
                         color: #2D3B71;
                         text-align: center;
                         font-family: 'Poppins', sans-serif;
-                        margin-top: 250px;
+                        margin-top: 50px;
                         margin-bottom: 20px;
                     }
                     .subtitle {
-                        font-size: 34px;
-                        color: black;
+                        font-size: calc(1.5em + 1vw);
+                        color: rgb(103, 103, 103);
                         text-align: center;
                     }
                     .variants {
@@ -489,15 +498,33 @@ class MapGWASSNPs:
                             service in the clinical research field.
                         </p>
                     <p2>* This report is for research use only</p2>
-                    </div>
-                    <div>
+                </div>
+                <div>
                     <h2>Overview</h2>
                         <p>This report presents the findings of whole genome sequencing
                             analysis. It provides detailed associations between genetic
                             variants and various diseases and traits, highlighting the mapped
                             genes, relevant SNPs, and associated gene regions.
                         </p>
+
+                    <div class="title">{{count_variant}}</div>
+                    <div class="subtitle">Variants have been found in your genome.</div>
+
+                    <div class="variants">
+                        <div class="variant">
+                            {{variant_1 | safe}}
+                        </div>
+                        <div class="variant">
+                            {{variant_2 | safe}}
+                        </div>
+                        <div class="variant">
+                            {{variant_3 | safe}}
+                        </div>
+                        <div class="variant">
+                            {{variant_4 | safe}}
+                        </div>
                     </div>
+                </div>
                     <div>
                         <h2>Termonology</h2>
                             <p><b>Gene:</b> Gene is a segment of DNA that serves as a blueprint for producing
@@ -517,32 +544,10 @@ class MapGWASSNPs:
                             <p><b>Alleles:</b> An allele is a variant form of a gene found at a specific position (locus)
                                 on a chromosome. Each allele is inherited, one from each parent.
                             </p>
-                            <p><b>Mapped Gene:</b> Genes mapped near or overlapping the SNPs.
-                            </p>
-                            <p><b>Chromosomal region:</b> The genomic region associated with the trait or disease.
-                            </p>
-                            <p><b>Risk Allele Frequency (%):</b> The frequency of the risk allele in the population.
-                            </p>
-
-                            
-                            <div class="title">{{count_variant}}</div>
-                            <div class="subtitle">Variants have been found in your genome.</div>
-
-                            <div class="variants">
-                            <div class="variant">
-                                {{variant_1 | safe}}
-                            </div>
-                            <div class="variant">
-                                {{variant_2 | safe}}
-                            </div>
-                            <div class="variant">
-                                {{variant_3 | safe}}
-                            </div>
-                            <div class="variant">
-                                {{variant_4 | safe}}
-                            </div>
-                        </div>
-                    </div>
+                            <p><b>Mapped Gene:</b> Genes mapped near or overlapping the SNPs.</p>
+                            <p><b>Chromosomal region:</b> The genomic region associated with the trait or disease.</p>
+                            <p><b>Risk Allele Frequency (%):</b> The frequency of the risk allele in the population.</p>
+                </div>
                 {% for (title_, region_, snps_, mapped_gene_, group_trait_, description_trait_), svg_, icon_ in data_source %}
                     <div class="chart-container">
                     <h2>{{ title_ }}</h2>
