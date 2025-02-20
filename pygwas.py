@@ -646,6 +646,6 @@ if __name__ == '__main__':
     gwas_file = "data/gwas_database_with_description_expanded.csv.gz"
     output_file = "test"
 
-    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=30, filt_nr_disease=True)
+    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=10, filt_nr_disease=True)
     mapper.map_snps()
     mapper.generate_report()
