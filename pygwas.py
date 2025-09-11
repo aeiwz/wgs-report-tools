@@ -13,7 +13,7 @@ class MapGWASSNPs:
         self.output_file = output_file_path
         self.cut_off_qual = cut_off_qual
         self.filt_nr_disease = filt_nr_disease
-        
+
         # Normalize path format
         output_file_path = output_file_path.replace('\\', '/').rstrip('/')
 
@@ -44,17 +44,17 @@ class MapGWASSNPs:
                 return "DEL"
             else:
                 return "COMPLEX"
-            
-        
-        
+
+
+
         # Apply classification to the DataFrame
         vcf_df["TYPE"] = vcf_df.apply(lambda row: classify_variant(row["REF"], row["ALT"]), axis=1)
-        
+
         self.vcf_report = vcf_df.copy()
         print("VCF file PASS filter count: ", vcf_df[vcf_df["FILTER"] == "PASS"].shape[0])
 
         print("Step 2: Reading GWAS catalog...")
-        #check compress 
+        #check compress
         if self.gwas_file.endswith('.gz'):
             gwas_df = pd.read_csv(self.gwas_file, low_memory=False, compression='gzip')  # Prevent dtype warnings
         else:
@@ -94,6 +94,9 @@ class MapGWASSNPs:
     def prepare_report_data(self):
         df = self.annotated_df.copy()
         report_data = df.groupby('DISEASE/TRAIT', as_index=False).agg({
+            'CHR_ID': 'first',
+            'CHR_POS': 'first',
+            'TYPE': 'first',
             'RISK ALLELE FREQUENCY': 'max',
             'P-VALUE': 'min',
             'REGION': 'first',
@@ -127,7 +130,7 @@ class MapGWASSNPs:
         import plotly.io as pio
         for _, row in data.iterrows():
             # Generate a Plotly figure
-            
+
             import plotly.graph_objects as go
             import numpy as np
 
@@ -187,7 +190,7 @@ class MapGWASSNPs:
 
             fig.update_layout(
                 font=dict(
-                    size=16,  
+                    size=16,
                 )
             )
 
@@ -196,7 +199,56 @@ class MapGWASSNPs:
             )
             #fig = go.Figure(data=[go.Bar(x=[row['DISEASE/TRAIT']], y=[row['RISK ALLELE FREQUENCY (%)']])])
             #fig.update_layout(title=row['DISEASE/TRAIT'], xaxis_title="Trait", yaxis_title="Risk Allele Frequency (%)")
+            import pandas as pd
+            import plotly.express as px
+            import json
 
+            df_sun = self.report_data.copy()
+            col_select = ["TYPE", "Groups of Disease/Trait", "CHR_ID", "REGION", "SNPS", "DISEASE/TRAIT"]
+
+            # Create Sunburst plot
+            fig_sun = px.sunburst(df_sun,
+                            path=col_select,
+                            color='RISK ALLELE FREQUENCY (%)',
+                            color_continuous_scale='Ice',)
+
+            fig_sun.update_layout(
+                title="",
+                showlegend=True,
+                height=800,
+                width=800,
+            )
+
+            #background transparency
+            fig_sun.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
+
+            # title to center and below of the chart
+            fig_sun.update_layout(
+                title_x=0.5,
+                title_y=0.98,
+                title_font_size=28
+            )
+
+            #Setup colorbar
+            fig_sun.update_layout(
+                coloraxis_colorbar_title_text="Risk Allele Frequency (%)",
+                coloraxis_colorbar_title_font_size=16,
+                coloraxis_colorbar_title_side="right",
+                coloraxis_colorbar_thickness=30,
+                coloraxis_colorbar_x=1,
+                coloraxis_colorbar_y=0.5,
+                coloraxis_colorbar_bgcolor='rgba(0,0,0,0)',
+                coloraxis_colorbar_tickfont_size=14,
+                )
+
+            fig_sun.update_coloraxes(showscale=False)
+
+            sun_plot = fig_sun.to_json()
+
+            #sun_plot = fig_sun.to_html(fig_sun, full_html=False, include_plotlyjs='cdn')
             # Convert figure to SVG
             svg_bytes = pio.to_image(fig, format="svg")
             svg_string = svg_bytes.decode("utf-8")  # Convert bytes to string
@@ -204,12 +256,13 @@ class MapGWASSNPs:
             # Store details and embedded SVG
             with open(f"data/Group of disease traits/{row['Groups of Disease/Trait']}.svg", "r", encoding="utf-8") as file:
                 img = file.read()
-                
-                
+
+
             details.append((row['DISEASE/TRAIT'], row['REGION'], row['SNPS'], row['MAPPED_GENE'], row['Groups of Disease/Trait'], row['MAPPED_TRAIT_DESCRIPTION']))
             embedded_svgs.append(svg_string)
             icon.append(str(img))
-        
+
+
         with open('data/logo/KKUNPhI-01.svg', 'r', encoding='utf-8') as file:
             logo = file.read()
 
@@ -224,7 +277,7 @@ class MapGWASSNPs:
 
         svg_circle = []
 
-        for i in type_of_varients_percentage.index:    
+        for i in type_of_varients_percentage.index:
             # Data for the single progress bar
             value = type_of_varients_percentage[i]  # Percentage of progress
             color = {'COMPLEX':'FF9999', 'DEL':'FF7F3E', 'INS':'3D527D', 'SNPs':'FFB854'}  # Custom color for progress
@@ -236,7 +289,7 @@ class MapGWASSNPs:
 
             # First (colored) pie chart
             fig2.add_trace(go.Pie(
-                values=[value, 100 - value],  
+                values=[value, 100 - value],
                 hole=0.6,
                 marker=dict(colors=[color[i], "rgba(0,0,0,0)"]),  # Hide gray part here
                 direction="clockwise",
@@ -294,7 +347,9 @@ class MapGWASSNPs:
             svg_string = svg_bytes.decode("utf-8")  # Convert bytes to string
             svg_circle.append(svg_string)
 
-        
+            df_sun_summary = np.round(df_sun['Groups of Disease/Trait'].value_counts(normalize=True) * 100, decimals=2).to_dict()
+            total_disease_trait = df_sun['Groups of Disease/Trait'].value_counts().sum()
+
 
         # HTML Template
         html_template = r"""
@@ -312,7 +367,7 @@ class MapGWASSNPs:
                         color: #333;
                         margin: 40px;
                         line-height: 1.6;
-                    }
+                        }
                     .header-container {
                         display: flex;
                         justify-content: center;
@@ -320,7 +375,7 @@ class MapGWASSNPs:
                         margin-bottom: 20px;
                         flex-wrap: wrap;
                         flex-direction: row;
-                    }
+                        }
                     h1 {
                         text-align: center;
                         flex-grow: 8;
@@ -331,35 +386,40 @@ class MapGWASSNPs:
                         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
                         font-size: clamp(2rem, 3vw, 6rem);
                         margin: 0;
-                    }
+                        }
                     h2 {
                         margin-top: 40px;
                         color: #2D3B71;
                         border-bottom: 3px solid #2D3B71;
                         padding-bottom: 5px;
                         display: inline-block;
-                        font-size: 32px;
-                    }
+                        font-size: clamp(2rem, 2.5vw, 3rem)
+                        }
+                    h3 {
+                        font-size: clamp(1.5rem, 2vw, 2rem)
+                        color: #2D3B71;
+                        }
+
                     p {
                         margin: 10px 0;
-                        font-size: 22px;
+                        font-size: clamp(0.5rem, 1.75vw, 2rem)
                         color: rgb(87, 107, 145);
-                    }
+                        }
                     p2 {
                         margin: 10px 0;
-                        font-size: 16px;
+                        font-size: clamp(0.5rem, 0.75vw, 1.5rem)
                         color: gray;
                         font-style: italic;
-                    }
+                        }
                     b {
                         color: #2D3B71;
-                    }
+                        }
                     .icon-text {
                         display: flex;
                         align-items: center;
                         margin-top: 30px;
                         flex-direction: row;
-                    }
+                        }
                     .icon-text svg {
                         width: 250px;
                         height: auto;
@@ -377,27 +437,55 @@ class MapGWASSNPs:
                         margin: 20px 0;
                         width: 100%;  /* Adjust based on the window size */
                         max-width: 98%; /* Set a max-width to prevent it from getting too big */
-                    }
-                    
+                        }
+                    .chart-container h2 {
+                        margin-top: 0;
+                        text-align: left;
+                        flex-grow: 1;
+                        font-size: clamp(2rem, 2.5vw, 3rem)
+                        front-weight: bold;
+                        text-transform: capitalize;
+                        flex-align: left;
+                        }
+                    .chart-container-inside {
+                        text-align: center;
+                        background: white;
+                        padding: 20px;
+                        margin: 20px 0;
+                        width: 100%;  /* Adjust based on the window size */
+                        max-width: 98%; /* Set a max-width to prevent it from getting too big */
+                        }
+
+                    .chart-container p {
+                        text-align: left;
+                        color: rgb(87, 107, 145);
+                        }
+                    .position_inside {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 5px;
+                        text-align: left;
+                        }
                     .chart svg {
-                        width: 95%;  /* Make SVG scale with container */
+                        width: clamp(20rem, 80vw, 95rem);  /* Make SVG scale with container */
                         height: auto; /* Maintain aspect ratio */
-                    }
+                        text-align: center;
+                        }
                     .download-btn {
                         display: inline-block;
                         background: rgb(87, 107, 145);
                         color: white;
                         padding: 8px 12px;
-                        font-size: 14px;
+                        font-size: clamp(0.5rem, 0.75vw, 1.5rem)
                         border-radius: 5px;
                         border: none;
                         cursor: pointer;
                         transition: 0.3s;
                         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-                    }
+                        }
                     .download-btn:hover {
                         background: rgb(87, 107, 145);
-                    }
+                        }
                     .logo-container {
                         text-align: center;
                         margin-top: 0px;
@@ -405,13 +493,13 @@ class MapGWASSNPs:
                         flex-grow: 2;
                         flex: 250px;
                         padding: 80px;
-                    }
+                        }
                     hr {
                         border: none;
                         height: 2px;
                         background: #ddd;
                         margin: 40px 0;
-                    }
+                        }
                     .title {
                         font-size: clamp(8rem, 14vw, 15rem);
                         font-weight: bold;
@@ -420,12 +508,12 @@ class MapGWASSNPs:
                         font-family: 'Poppins', sans-serif;
                         margin-top: 50px;
                         margin-bottom: 20px;
-                    }
+                        }
                     .subtitle {
                         font-size: calc(1.5em + 1vw);
                         color: rgb(103, 103, 103);
                         text-align: center;
-                    }
+                        }
                     .variants {
                         display: flex;
                         justify-content: center;
@@ -434,7 +522,7 @@ class MapGWASSNPs:
                         flex-flow: space-evenly;
                         margin: 20px;
                         flex-wrap: wrap;
-                    }
+                        }
                     .variant {
                         display: flex;
                         align-items: center;
@@ -443,28 +531,300 @@ class MapGWASSNPs:
                         align-self: auto | flex-start | flex-end | center | baseline | stretch;
                         flex: 1 1 auto;
                         flex-wrap: wrap;
-                        width: 300px;
-                    }
+                        width: clamp(20rem, 28vw, 30rem);
+                        }
                     .position_infomation {
                         display: flex;
                         align-items: center;
                         justify-content: flex-start;
                         gap: 20px;
-                    }
+                        }
 
                     .icon-container {
                         flex-shrink: 0; /* Prevents icon from shrinking */
-                    }
+                        }
 
                     .position_inside {
                         display: flex;
                         flex-direction: column;
                         gap: 5px;
+                        }
+                    h5 {
+                        font-size: clamp(1rem, 2vw, 3rem);
+                        font-weight: bold;
+                        color: #2D3B71;
+                        text-align: center;
+                        font-family: 'Poppins', sans-serif;
+                        margin-top: 50px;
+                        margin-bottom: 20px;
+                        }
+                    .chart_overview {
+                        text-align: center;
+                        margin: 50px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        flex-direction: row;}
+                        gap: 5px;
+                        margin-bottom: 5px;
+                        align-self: center;
+                        flex: 1 1 auto;
+                        flex-wrap: wrap;
+                        width: clamp(20rem, 28vw, 30rem);
+                        }
+                    #sun_plot {
+                        width: clamp(16rem, 19vw, 28rem);
+                        height: clamp(16rem, 19vw, 28rem);
+                        }
+
+                    .summary_text {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 5px;
+                        text-align: center;
+                        }
+                    .summary_text h3 {
+                        font-size: clamp(1.5rem, 2vw, 2rem)
+                        color: #2D3B71;
+                        }
+                    .summary_text p {
+                        font-size: clamp(1rem, 1.5vw, 2rem)
+                        color: rgb(103, 103, 103);
+                        }
+                    .plot-container {
+                        width: clamp(1rem, 1.5vw, 2rem); /* Make plot container use full page width */
+                        max-width: 100%; /* Prevent plot from overflowing */
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        margin: 0 auto;
+                        }
+                    .plot-container-inside {
+                        width: 100%;
+                        max-width: 100%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        margin: 0 auto;
+
+                        }
+                    .plot-container-inside h3 {
+                        font-size: clamp(1.5rem, 2vw, 2rem)
+                        color: #2D3B71;
+                        text-align: center;
+                        }
+                    .plot-container-inside p {
+                        font-size: clamp(1rem, 1.5vw, 2rem)
+                        color: rgb(103, 103, 103);
+                        text-align: center;
+                        }
+                    .plot-container-inside .position_inside {
+                        display: flex;
+
+                        }
+                    .disease-number {
+                        font-size: clamp(2rem, 2.5vw, 3rem)
+                        font-weight: bold;
+                        color: #2D3B71;
+                        }
+                    .disease-text {
+                        font-size: clamp(1rem, 1.5vw, 2rem)
+                        color: rgb(103, 103, 103);
+                        }
+                    .print-btn {
+                        display: block;
+                        margin: 20px auto;
+                        padding: 10px 20px;
+                        font-size: 1rem;
+                        background-color: #3c79aa;
+                        color: white;
+                        border: none;
+                        cursor: pointer;
+                        border-radius: 5px;
+                        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+                        transition: 0.3s;
+                        }
+                    .print-btn:hover {
+                        background-color: #2D3B71;
+                        }
+                    @media print {
+                        @page {
+                            size: A4 portrait; /* Set to A4 size */
+                            margin: 10mm; /* Adjust margin for better fit */
+                        }
+                        html, body {
+                            width: 210mm;
+                            height: 297mm;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        body {
+                            width: 100%;
+                        }
+                        .header-container,
+                        .logo-container,
+                        .variants,
+                        .plot-container {
+                            width: 100%;
+                            max-width: 100%;
+                            box-sizing: border-box;
+                        }
+                        h1 {
+                            font-size: 48px; /* Title size optimized for A4 */
+                            text-align: center;
+                        }
+                        h5, .print-btn, .download-btn, #sun_plot {
+                            display: none; /* Hide unnecessary elements */
+                        }
+                        section {
+                            width: 100%;
+                            max-width: 100%;
+                            box-sizing: border-box;
+                            page-break-before: always;
+                            page-break-inside: avoid;
+                        }
+                        img, table, svg, canvas {
+                            max-width: 100%;
+                            height: auto;
+                        }
+                        .variants {
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            flex-direction: row;
+                            flex-wrap: wrap;
+                            gap: 10px;
+                        }
+                        .variant {
+                            display: flex;
+                            align-items: center;
+                            gap: 5px;
+                            margin-bottom: 5px;
+                            align-self: center;
+                            width: 40px;
+                        }
+                        sub-title {
+                            font-size: 30px;
+                            text-align: center;
+                        }
+                    }
+                        /* Mobile-first responsive design */
+                    @media (max-width: 768px) {
+                        body {
+                            margin: 20px;
+                            font-size: 16px;
+                        }
+
+                        .header-container {
+                            flex-direction: column;
+                            text-align: center;
+                        }
+
+                        h1 {
+                            font-size: clamp(1.5rem, 5vw, 3rem);
+                            padding: 15px;
+                        }
+
+                        h2, h3, h5 {
+                            font-size: clamp(1.2rem, 4vw, 2rem);
+                            text-align: center;
+                        }
+                        .title {
+                            font-size: clamp(3rem, 5vw, 8rem);
+                        }
+                        p {
+                            font-size: clamp(0.8rem, 3vw, 1.5rem);
+                            padding: 10px;
+                        }
+
+                        .chart-container,
+                        .chart-container-inside,
+                        .plot-container,
+                        .plot-container-inside {
+                            width: 100%;
+                            max-width: 100%;
+                            padding: 10px;
+                        }
+
+                        .icon-text {
+                            flex-direction: column;
+                            align-items: center;
+                        }
+
+                        .icon-text svg {
+                            width: 80%;
+                            margin-bottom: 10px;
+                        }
+
+                        .variants {
+                            flex-direction: column;
+                            align-items: center;
+                        }
+
+                        .variant {
+                            width: 70%;
+                        }
+
+                        .download-btn, .print-btn {
+                            font-size: 9px;
+                            padding: 3px 6px;
+                            width: 20%;
+                            text-align: center;
+                        }
+
+                        .logo-container {
+                            padding: 40px;
+                        }
+
+                        .summary_text, .position_inside {
+                            text-align: center;
+                        }
+
+                        .chart svg {
+                            width: 100%;
+                            height: auto;
+                        }
+
+                        #sun_plot {
+                            width: 95%;
+                            height: auto;
+                        }
+
+                        hr {
+                            margin: 20px 0;
+                        }
+                        .position_inside {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 3px;
+                            padding: 3px;
+                        }
+                        .position_infomation {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 3px;
+                            padding: 3px;
+                            flex-align: left;
+                            }
                     }
 
-                    }
                 </style>
-                                <script>
+                <script>
+
+                    function resizePlot() {
+                        let plotContainer = document.getElementById('plot-container');
+                        let plotDiv = document.getElementsByClassName('plotly-graph-div')[0];
+
+                        if (plotDiv) {
+                            Plotly.relayout(plotDiv, {
+                                width: plotContainer.clientWidth,
+                                height: window.innerHeight * 0.8
+                            });
+                        }
+                    }
+
+                window.addEventListener('resize', resizePlot);
+                window.onload = resizePlot; // Run once when the page loads
                     function resizeChart() {
                         var chart = document.getElementById('chart_1');
                         Plotly.relayout(chart, {
@@ -472,23 +832,29 @@ class MapGWASSNPs:
                             height: window.innerHeight * 0.3 // Adjust height dynamically
                         });
                     }
-                
+
                     window.addEventListener('resize', resizeChart);
                     window.onload = resizeChart; // Run once when the page loads
+
+                    function printReport() {
+                        window.print();
+                    }
                 </script>
-                
+
             </head>
+
             <body>
+            <section>
                 <div class="header-container">
                     <div class="logo-container">
                         <div class="logo" id="logo_01">
                             {{ logo_ | safe }}
                         </div>
                     </div>
-                        
+
                         <h1>Whole Genome Analysis Report</h1>
                 </div>
-                
+
                 <div>
                     <h2>Disclaimer</h2>
                         <p>The service provided by Khon Kaen University National
@@ -500,6 +866,8 @@ class MapGWASSNPs:
                         </p>
                     <p2>* This report is for research use only</p2>
                 </div>
+            </section>
+            <section>
                 <div>
                     <h2>Overview</h2>
                         <p>This report presents the findings of whole genome sequencing
@@ -507,10 +875,9 @@ class MapGWASSNPs:
                             variants and various diseases and traits, highlighting the mapped
                             genes, relevant SNPs, and associated gene regions.
                         </p>
-
+                <div class="overview">
                     <div class="title">{{count_variant}}</div>
                     <div class="subtitle">Variants have been found in your genome.</div>
-
                     <div class="variants">
                         <div class="variant">
                             {{variant_1 | safe}}
@@ -526,6 +893,37 @@ class MapGWASSNPs:
                         </div>
                     </div>
                 </div>
+            </section>
+            <section>
+                <div>
+                <h5>Overview of Disease/Trait in Your Genome</h5>
+                </div>
+                <div class="chart_overview" id="sun_plot"></div>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            <script id="sunburst-data" type="application/json">
+                {{ sun_plot_ | safe }}
+            </script>
+            <script>
+                // Read JSON data from the script tag
+                var jsonData = JSON.parse(document.getElementById("sunburst-data").textContent);
+
+                // Plot the Sunburst chart
+                Plotly.newPlot('sun_plot', jsonData.data, jsonData.layout);
+                Plotly.relayout('sun_plot', autosize = true);
+                //update figure size base on windows size
+                window.addEventListener('resize', function() {
+                    Plotly.relayout('sun_plot', {
+                        //adjust width and height based on grid-over-view-container
+                        width: document.querySelector('.chart_overview').offsetWidth,
+                        height: document.querySelector('.chart_overview').offsetHeight
+                        });
+                    });
+                //resize colorbar
+                window.onload = resizePlot; // Run once when the page loads
+
+            </script>
+            </section>
+            <section>
                     <div>
                         <h2>Termonology</h2>
                             <p><b>Gene:</b> Gene is a segment of DNA that serves as a blueprint for producing
@@ -549,37 +947,39 @@ class MapGWASSNPs:
                             <p><b>Chromosomal region:</b> The genomic region associated with the trait or disease.</p>
                             <p><b>Risk Allele Frequency (%):</b> The frequency of the risk allele in the population.</p>
                 </div>
+            </section>
                 <hr>
-                
                 {% for (title_, region_, snps_, mapped_gene_, group_trait_, description_trait_), svg_, icon_ in data_source %}
+                <section>
                     <div class="chart-container">
-                    <h2>{{ title_ }}</h2>
-                    <p>{{ description_trait_ }}</p>
-
-                    <div class="position_infomation">
-                        <div class="icon-text">
-                            <div class="icon-container">
-                                {{icon_ | safe }}
+                        <h2>{{ title_ }}</h2>
+                        <p>{{ description_trait_ }}</p>
+                        <div class="chart-container-inside">
+                            <div class="position_infomation">
+                                <div class="icon-text">
+                                    <div class="icon-container">
+                                        {{icon_ | safe }}
+                                    </div>
+                                    <div class="position_inside">
+                                        <p><b>Region:</b> {{ region_ }}</p>
+                                        <p><b>SNPs ID:</b> {{ snps_ }}</p>
+                                        <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
+                                        <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="position_inside">
-                                <p><b>Region:</b> {{ region_ }}</p>
-                                <p><b>SNPs ID:</b> {{ snps_ }}</p>
-                                <p><b>Mapped Gene:</b> {{ mapped_gene_ }}</p>
-                                <p><b>Group of disease/trait:</b> {{ group_trait_ }}</p>
-                            </div>
-                        </div>
-                    </div>
 
-                    
-                        <div class="chart" id="chart_{{ loop.index }}">
-                            {{ svg_ | safe }}
+
+                            <div class="chart" id="chart_{{ loop.index }}">
+                                {{ svg_ | safe }}
+                            </div>
+                            <button class="download-btn" onclick="downloadChart('{{ loop.index }}', '{{ title_ }}')">Download Chart</button>
                         </div>
-                        <button class="download-btn" onclick="downloadChart('{{ loop.index }}', '{{ title_ }}')">Download Chart</button>
+
                     </div>
-                   
                     <hr>
+                </section>
                 {% endfor %}
-
                 <script>
                     function downloadChart(chartId, title) {
                         let svgElement = document.querySelector("#chart_" + chartId + " svg");
@@ -590,7 +990,7 @@ class MapGWASSNPs:
 
                         let serializer = new XMLSerializer();
                         let svgString = serializer.serializeToString(svgElement);
-                        
+
                         let canvas = document.createElement("canvas");
                         let ctx = canvas.getContext("2d");
                         let img = new Image();
@@ -621,6 +1021,10 @@ class MapGWASSNPs:
                     }
                 </script>
 
+
+                <div>
+                    <button class="print-btn" onclick="printReport()">Print Report</button>
+                </div>
             </body>
             </html>
         """
@@ -628,7 +1032,9 @@ class MapGWASSNPs:
         template = Template(html_template)
         rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), count_variant=f'{total_variant:,.0f}',
                                         variant_1 = svg_circle[0], variant_2 = svg_circle[1], variant_3 = svg_circle[2], variant_4 = svg_circle[3],
-                                        logo_=logo)
+                                        logo_=logo,
+                                        sun_plot_ = sun_plot,
+                                        disease_trait_summary = df_sun_summary, total_disease_trait_ = total_disease_trait)
 
         with open(output_path, 'w') as f:
             f.write(rendered_html)
@@ -641,11 +1047,25 @@ class MapGWASSNPs:
         print(f"Report saved to {os.path.join(self.report_path, 'GWAS_report.html')}")
 
 if __name__ == '__main__':
-    vcf_file = "data/medaka.annotated.vcf.gz"
-    #gwas_file = "https://raw.githubusercontent.com/aeiwz/wgs-report-tools/main/data/gwas_catalog_grouped.csv"
+    barcode = 'bc24'
+    vcf_file = f"medaka/{barcode}/medaka.annotated.vcf"
+    #gwas_file = "https://raw.githubusercontent.com/aeiwz/wgs-report-tools/master/data/gwas_database_with_description_expanded.csv.gz"
     gwas_file = "data/gwas_database_with_description_expanded.csv.gz"
-    output_file = "test"
+    output_file = f"medaka/{barcode}"
 
-    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=10, filt_nr_disease=True)
+    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=20, filt_nr_disease=True)
     mapper.map_snps()
     mapper.generate_report()
+
+
+
+'''
+                            <div class="summary_text">
+                                <h3> Total {{total_disease_trait_}} Disease/Trait</h3>
+                                <div class="position_inside">
+                                    {% for key, value in disease_trait_summary.items() %}
+                                    <p><b>{{ key }}:</b> {{ value }} %</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+'''
