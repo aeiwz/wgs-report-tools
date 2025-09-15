@@ -229,7 +229,7 @@ class MapGWASSNPs:
             ))
             fig.update_layout(
                 width=1000, height=220, showlegend=False,
-                xaxis=dict(range=[0, 100], showgrid=False, zeroline=False, title=f"Your Genetic Risk  {val:.2f} (%)"),
+                xaxis=dict(range=[0, 100], showgrid=False, zeroline=False, title=f"Genetic Risk  {val:.2f} (%)"),
                 yaxis=dict(visible=False),
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                 font=dict(size=16), margin=dict(t=60, b=100, l=100, r=100, pad=0)
@@ -333,7 +333,7 @@ class MapGWASSNPs:
             except Exception:
                 logo_svg = ""
 
-        # HTML Template (your original, unchanged)
+        # HTML Template (original, unchanged)
         html_template = r"""
             <!DOCTYPE html>
             <html lang="en">
@@ -859,7 +859,7 @@ class MapGWASSNPs:
                         </p>
                 <div class="overview">
                     <div class="title">{{count_variant}}</div>
-                    <div class="subtitle">Variants have been found in your genome.</div>
+                    <div class="subtitle">Variants have been found in genome.</div>
                     <div class="variants">
                         <div class="variant">
                             {{variant_1 | safe}}
@@ -878,7 +878,7 @@ class MapGWASSNPs:
             </section>
             <section>
                 <div>
-                <h5>Overview of Disease/Trait in Your Genome</h5>
+                <h5>Overview of Disease/Trait in Genome</h5>
                 </div>
                 <div class="chart_overview" id="sun_plot"></div>
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
