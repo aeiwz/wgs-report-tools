@@ -1,357 +1,339 @@
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from jinja2 import Template
+import re
+import json
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
+from jinja2 import Template
 
 class MapGWASSNPs:
-    def __init__(self, vcf_file_path: str, gwas_file_path: str, output_file_path: str, cut_off_qual: int = 20, filt_nr_disease: bool = True):
+    def __init__(self, vcf_file_path: str, gwas_file_path: str, output_file_path: str,
+                 cut_off_qual: int = 20, filt_nr_disease: bool = True):
         self.vcf_file = vcf_file_path
         self.gwas_file = gwas_file_path
-        self.output_file = output_file_path
+        self.output_root = output_file_path.replace('\\', '/').rstrip('/')
+
+        # Output folders
+        self.report_path = os.path.join(self.output_root, "report")
+        self.report_data_path = os.path.join(self.report_path, "data")
+        os.makedirs(self.report_data_path, exist_ok=True)
+
         self.cut_off_qual = cut_off_qual
         self.filt_nr_disease = filt_nr_disease
 
-        # Normalize path format
-        output_file_path = output_file_path.replace('\\', '/').rstrip('/')
+        # Will be filled later
+        self.vcf_report = None
+        self.annotated_df = None
+        self.report_data = None
 
-        # Create necessary directories
-        self.report_path = os.path.join(output_file_path, "report")
-        self.report_data_path = os.path.join(self.report_path, "data")
+    # ---------- helpers ----------
+    @staticmethod
+    def _classify_variant(ref: str, alt: str) -> str:
+        # ALT can be comma-separated (multi-allelic) – choose first for type check
+        alt_first = str(alt).split(',')[0]
+        rl, al = len(str(ref)), len(alt_first)
+        if rl == 1 and al == 1:
+            return "SNPs"
+        elif rl < al:
+            return "INS"
+        elif rl > al:
+            return "DEL"
+        else:
+            return "COMPLEX"
 
+    @staticmethod
+    def _to_numeric_safe(s: pd.Series) -> pd.Series:
+        """Coerce to numeric; handle weird scientific formats like '1 x 10-4'."""
+        # Normalize "a x 10^b" or "a x 10-b" into "aE b"
+        cleaned = s.astype(str).str.replace(r'×', 'x', regex=False)
+        cleaned = cleaned.str.replace(
+            r'^\s*([+-]?\d*\.?\d+)\s*[xX]\s*10\s*[\^]?\s*([+-]?\d+)\s*$',
+            lambda m: f"{m.group(1)}e{m.group(2)}",
+            regex=True
+        )
+        # Remove commas and stray spaces, turn NR/NA/– to NaN
+        cleaned = cleaned.str.replace(',', '', regex=False).str.strip()
+        cleaned = cleaned.replace(
+            {r'^(NR|NA|N/?A|None|nan|—|-|\.?)$': np.nan}, regex=True
+        )
+        return pd.to_numeric(cleaned, errors='coerce')
 
-        os.makedirs(self.report_data_path, exist_ok=True)
-
+    # ---------- pipeline ----------
     def map_snps(self):
         print("Step 1: Reading VCF file...")
         vcf_columns = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLE"]
-        if vcf_file.endswith('.gz'):
+        if self.vcf_file.endswith('.gz'):
             vcf_df = pd.read_csv(self.vcf_file, compression='gzip', sep='\t', comment="#", names=vcf_columns)
         else:
             vcf_df = pd.read_csv(self.vcf_file, comment="#", sep='\t', names=vcf_columns)
-        # Function to classify variant type
-        def classify_variant(ref, alt):
-            ref_len = len(ref)
-            alt_len = len(alt)
 
-            if ref_len == 1 and alt_len == 1:
-                return "SNPs"
-            elif ref_len < alt_len:
-                return "INS"
-            elif ref_len > alt_len:
-                return "DEL"
-            else:
-                return "COMPLEX"
+        # Normalize basic types
+        vcf_df["CHROM"] = vcf_df["CHROM"].astype(str)
+        vcf_df["POS"] = vcf_df["POS"].astype(str)
+        vcf_df["QUAL"] = self._to_numeric_safe(vcf_df["QUAL"])
 
+        # Filter QUAL >= cutoff ONLY ONCE (affects both merge and stats)
+        vcf_df = vcf_df.loc[vcf_df["QUAL"] >= float(self.cut_off_qual)].copy()
+        print(f'Number of variants PASS at Quality ≥ {self.cut_off_qual}: {vcf_df.shape[0]:,}')
 
-
-        # Apply classification to the DataFrame
-        vcf_df["TYPE"] = vcf_df.apply(lambda row: classify_variant(row["REF"], row["ALT"]), axis=1)
+        # Variant type
+        vcf_df["TYPE"] = vcf_df.apply(lambda r: self._classify_variant(r["REF"], r["ALT"]), axis=1)
 
         self.vcf_report = vcf_df.copy()
-        print("VCF file PASS filter count: ", vcf_df[vcf_df["FILTER"] == "PASS"].shape[0])
+        print("VCF file FILTER=='PASS' count (after QUAL filter):", vcf_df[vcf_df["FILTER"] == "PASS"].shape[0])
 
         print("Step 2: Reading GWAS catalog...")
-        #check compress
         if self.gwas_file.endswith('.gz'):
-            gwas_df = pd.read_csv(self.gwas_file, low_memory=False, compression='gzip')  # Prevent dtype warnings
+            gwas_df = pd.read_csv(self.gwas_file, low_memory=False, compression='gzip')
         else:
             gwas_df = pd.read_csv(self.gwas_file, low_memory=False)
-        print("GWAS catalog PASS : ", gwas_df.shape)
+        print("GWAS catalog shape:", gwas_df.shape)
 
-        print("Step 3: Normalizing chromosome identifiers...")
-        #vcf_df["CHROM"] = vcf_df["CHROM"].astype(str).str.replace('^chr', '', regex=True)
-        #gwas_df["CHR_ID"] = gwas_df["CHR_ID"].astype(str)
-        print('Normalizing chromosome identifiers PASS')
-
-        print("Step 4: Ensuring position columns are strings...")
-        vcf_df["POS"] = vcf_df["POS"].astype(str)
+        print("Step 3: Normalizing identifiers...")
+        gwas_df["CHR_ID"] = gwas_df["CHR_ID"].astype(str)
         gwas_df["CHR_POS"] = gwas_df["CHR_POS"].astype(str)
-        print('Ensuring position columns are strings PASS')
+        print("Identifier normalization PASS")
 
-        print("Step 5: Merging VCF and GWAS data...")
-        annotated_df = pd.merge(vcf_df, gwas_df, left_on=["CHROM", "POS"], right_on=["CHR_ID", "CHR_POS"], how="inner")
-        print('Merging VCF and GWAS data PASS')
+        print("Step 4: Merge on chromosome/position...")
+        annotated_df = pd.merge(
+            vcf_df, gwas_df,
+            left_on=["CHROM", "POS"],
+            right_on=["CHR_ID", "CHR_POS"],
+            how="inner"
+        )
+        print("Merge PASS; rows:", annotated_df.shape[0])
 
-        annotated_df.dropna(subset=['DISEASE/TRAIT'], inplace=True)
-        annotated_df = annotated_df[annotated_df["QUAL"] >= self.cut_off_qual]
+        # Keep essential + clean numerics before filters/agg
+        if "DISEASE/TRAIT" in annotated_df.columns:
+            annotated_df.dropna(subset=['DISEASE/TRAIT'], inplace=True)
+        else:
+            raise KeyError("Column 'DISEASE/TRAIT' not found in GWAS file.")
 
+        # Optional: filter out "NR" traits
         if self.filt_nr_disease:
-            annotated_df = annotated_df[annotated_df["DISEASE/TRAIT"] != "NR"]
+            annotated_df = annotated_df[annotated_df["DISEASE/TRAIT"].astype(str) != "NR"]
+
+        # Clean numeric GWAS columns used later
+        for col in ["RISK ALLELE FREQUENCY", "P-VALUE"]:
+            if col in annotated_df.columns:
+                annotated_df[col] = self._to_numeric_safe(annotated_df[col])
+
+        # Persist CSV
+        out_csv = os.path.join(self.report_data_path, 'in-house_report.csv')
+        print("Saving annotated data to CSV...")
+        annotated_df.to_csv(out_csv, index=False)
+        print(f"Annotated data saved to {out_csv}")
 
         self.annotated_df = annotated_df
-
-        # Save output
-        output_path = os.path.join(self.report_data_path, 'in-house_report.csv')
-        print("Saving annotated data to CSV...")
-        annotated_df.to_csv(output_path, index=False)
-
-        print(f"Annotated data saved to {output_path}")
         return annotated_df
 
     def prepare_report_data(self):
+        if self.annotated_df is None:
+            raise RuntimeError("annotated_df is empty. Run map_snps() first.")
+
         df = self.annotated_df.copy()
-        report_data = df.groupby('DISEASE/TRAIT', as_index=False).agg({
-            'CHR_ID': 'first',
-            'CHR_POS': 'first',
-            'TYPE': 'first',
-            'RISK ALLELE FREQUENCY': 'max',
-            'P-VALUE': 'min',
-            'REGION': 'first',
-            'SNPS': 'first',
-            'MAPPED_GENE': 'first',
-            'Groups of Disease/Trait': 'first',
-            'MAPPED_TRAIT_URI': 'first',
-            'MAPPED_TRAIT_DESCRIPTION': 'first'
-        })
 
-        report_data['RISK ALLELE FREQUENCY'] = pd.to_numeric(report_data['RISK ALLELE FREQUENCY'], errors='coerce')
-        report_data['RISK ALLELE FREQUENCY (%)'] = report_data['RISK ALLELE FREQUENCY'] * 100
-        report_data.dropna(subset=['RISK ALLELE FREQUENCY (%)'], inplace=True)
-        report_data.sort_values(by='RISK ALLELE FREQUENCY (%)', ascending=False, inplace=True)
+        # Build an order key to pick "representative" rows per trait (lowest p-value, then highest RAF)
+        df["P_SORT"] = self._to_numeric_safe(df["P-VALUE"]) if "P-VALUE" in df.columns else np.nan
+        df["RAF_SORT"] = self._to_numeric_safe(df["RISK ALLELE FREQUENCY"]) if "RISK ALLELE FREQUENCY" in df.columns else np.nan
+        df.sort_values(by=["P_SORT", "RAF_SORT"], ascending=[True, False], inplace=True)
 
-        self.report_data = report_data
+        # For each trait, take the first row after sorting
+        keep_cols = [
+            'DISEASE/TRAIT', 'CHR_ID', 'CHR_POS', 'TYPE',
+            'RISK ALLELE FREQUENCY', 'P-VALUE',
+            'REGION', 'SNPS', 'MAPPED_GENE',
+            'Groups of Disease/Trait', 'MAPPED_TRAIT_URI', 'MAPPED_TRAIT_DESCRIPTION'
+        ]
+        keep_cols = [c for c in keep_cols if c in df.columns]
+        rep = df[keep_cols].drop_duplicates(subset=['DISEASE/TRAIT']).copy()
 
-        output_path = os.path.join(self.report_data_path, 'report_data.csv')
+        # Compute standardized percentage column
+        rep['RAF (%)'] = self._to_numeric_safe(rep['RISK ALLELE FREQUENCY']) * 100.0
+        rep.dropna(subset=['RAF (%)'], inplace=True)
+        rep.sort_values(by='RAF (%)', ascending=False, inplace=True)
+
+        # Save
+        out_csv = os.path.join(self.report_data_path, 'report_data.csv')
         print("Saving report data to CSV...")
-        report_data.to_csv(output_path, index=False)
-        return report_data
+        rep.to_csv(out_csv, index=False)
 
-
+        self.report_data = rep
+        return rep
 
     def generate_html_report(self):
+        if self.report_data is None:
+            raise RuntimeError("report_data is empty. Run prepare_report_data() first.")
+
         data = self.report_data
         output_path = os.path.join(self.report_path, 'GWAS_report.html')
-        details = []
+
+        # ---------- Sunburst (built once) ----------
+        sun_cols_all = ["TYPE", "Groups of Disease/Trait", "CHR_ID", "REGION", "SNPS", "DISEASE/TRAIT"]
+        sun_cols = [c for c in sun_cols_all if c in data.columns]
+        df_sun = data.copy()
+
+        # Treat empty strings as missing, then DROP rows with missing ancestors (TYPE, group, CHR_ID, REGION)
+        df_sun[sun_cols] = df_sun[sun_cols].replace("", np.nan)
+        required_ancestors = [c for c in ["TYPE", "Groups of Disease/Trait", "CHR_ID", "REGION"] if c in df_sun.columns]
+        if required_ancestors:
+            df_sun = df_sun.dropna(subset=required_ancestors)
+
+        # Ensure color column numeric
+        color_col = "RAF (%)"
+        if color_col in df_sun.columns:
+            df_sun[color_col] = pd.to_numeric(df_sun[color_col], errors="coerce")
+        else:
+            df_sun[color_col] = np.nan
+
+        if df_sun.empty or not sun_cols:
+            fig_sun = px.sunburst(pd.DataFrame({c: [] for c in sun_cols_all if c in data.columns}),
+                                  path=[c for c in sun_cols_all if c in data.columns])
+        else:
+            fig_sun = px.sunburst(
+                df_sun,
+                path=sun_cols,
+                color=color_col,
+                color_continuous_scale='Ice'
+            )
+        fig_sun.update_layout(title="", showlegend=True, height=800, width=800,
+                              plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig_sun.update_coloraxes(showscale=False)
+        sun_plot_json = fig_sun.to_json()
+
+        # ---------- Per-trait mini gauge (SVG) ----------
+        try:
+            import plotly.io as pio
+            HAVE_KALEIDO = True
+        except Exception:
+            HAVE_KALEIDO = False
+
         embedded_svgs = []
-        icon = []
-        import plotly.io as pio
+        details = []
+        icons = []
+
         for _, row in data.iterrows():
-            # Generate a Plotly figure
-
-            import plotly.graph_objects as go
-            import numpy as np
-
+            # single horizontal heat "gauge" with pointer at RAF%
+            val = float(row['RAF (%)'])
             fig = go.Figure()
             z_ = np.linspace(0, 100, 100)
             fig.add_trace(go.Heatmap(
                 z=[z_],
-                colorscale=[
-                    [0, '#008AA5'],
-                    [1, '#F1423E']
-                ],
-                showscale=False,
-                colorbar=dict(
-                    tick0=0,
-                    dtick=1
-                )
+                colorscale=[[0, '#008AA5'], [1, '#F1423E']],
+                showscale=False
             ))
-
-            fig.update_layout(
-                xaxis=dict(
-                    range=[0, 100]
-                )
-            )
-
-            fig.update_layout(
-                xaxis_title=f"Your Genetic Risk  {np.round(row['RISK ALLELE FREQUENCY (%)'], decimals=2)} (%)",
-            )
-
             fig.add_trace(go.Scatter(
-                x=[row['RISK ALLELE FREQUENCY (%)']],
-                y=[0.9],
-                mode='markers',
-                marker=dict(
-                    symbol='triangle-down',
-                    size=30,
-                    color='#434343'
-                )
+                x=[val], y=[0.9], mode='markers',
+                marker=dict(symbol='triangle-down', size=30, color='#434343')
             ))
-
             fig.update_layout(
-                width=1000,
-                height=220
+                width=1000, height=220, showlegend=False,
+                xaxis=dict(range=[0, 100], showgrid=False, zeroline=False, title=f"Your Genetic Risk  {val:.2f} (%)"),
+                yaxis=dict(visible=False),
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(size=16), margin=dict(t=60, b=100, l=100, r=100, pad=0)
             )
 
-            fig.update_layout(
-                yaxis=dict(
-                    visible=False,
-                ),
-                showlegend=False,
-                xaxis=dict(
-                    showgrid=False,
-                    zeroline=False
-                ),
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
+            if HAVE_KALEIDO:
+                try:
+                    svg_bytes = pio.to_image(fig, format="svg")
+                    svg_string = svg_bytes.decode("utf-8")
+                except Exception:
+                    svg_string = "<div>Chart rendering requires kaleido. Please install: pip install -U kaleido</div>"
+            else:
+                svg_string = "<div>Chart rendering requires kaleido. Please install: pip install -U kaleido</div>"
 
-            fig.update_layout(
-                font=dict(
-                    size=16,
-                )
-            )
-
-            fig.update_layout(
-                margin=dict(t=60, b=100, l=100, r=100, pad=0)
-            )
-            #fig = go.Figure(data=[go.Bar(x=[row['DISEASE/TRAIT']], y=[row['RISK ALLELE FREQUENCY (%)']])])
-            #fig.update_layout(title=row['DISEASE/TRAIT'], xaxis_title="Trait", yaxis_title="Risk Allele Frequency (%)")
-            import pandas as pd
-            import plotly.express as px
-            import json
-
-            df_sun = self.report_data.copy()
-            col_select = ["TYPE", "Groups of Disease/Trait", "CHR_ID", "REGION", "SNPS", "DISEASE/TRAIT"]
-
-            # Create Sunburst plot
-            fig_sun = px.sunburst(df_sun,
-                            path=col_select,
-                            color='RISK ALLELE FREQUENCY (%)',
-                            color_continuous_scale='Ice',)
-
-            fig_sun.update_layout(
-                title="",
-                showlegend=True,
-                height=800,
-                width=800,
-            )
-
-            #background transparency
-            fig_sun.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
-
-            # title to center and below of the chart
-            fig_sun.update_layout(
-                title_x=0.5,
-                title_y=0.98,
-                title_font_size=28
-            )
-
-            #Setup colorbar
-            fig_sun.update_layout(
-                coloraxis_colorbar_title_text="Risk Allele Frequency (%)",
-                coloraxis_colorbar_title_font_size=16,
-                coloraxis_colorbar_title_side="right",
-                coloraxis_colorbar_thickness=30,
-                coloraxis_colorbar_x=1,
-                coloraxis_colorbar_y=0.5,
-                coloraxis_colorbar_bgcolor='rgba(0,0,0,0)',
-                coloraxis_colorbar_tickfont_size=14,
-                )
-
-            fig_sun.update_coloraxes(showscale=False)
-
-            sun_plot = fig_sun.to_json()
-
-            #sun_plot = fig_sun.to_html(fig_sun, full_html=False, include_plotlyjs='cdn')
-            # Convert figure to SVG
-            svg_bytes = pio.to_image(fig, format="svg")
-            svg_string = svg_bytes.decode("utf-8")  # Convert bytes to string
-            #svg_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
-            # Store details and embedded SVG
-            with open(f"data/Group of disease traits/{row['Groups of Disease/Trait']}.svg", "r", encoding="utf-8") as file:
-                img = file.read()
-
-
-            details.append((row['DISEASE/TRAIT'], row['REGION'], row['SNPS'], row['MAPPED_GENE'], row['Groups of Disease/Trait'], row['MAPPED_TRAIT_DESCRIPTION']))
             embedded_svgs.append(svg_string)
-            icon.append(str(img))
 
+            # Optional icon per group
+            icon_svg = ""
+            if "Groups of Disease/Trait" in row and isinstance(row["Groups of Disease/Trait"], str):
+                icon_path = os.path.join("data", "Group of disease traits", f"{row['Groups of Disease/Trait']}.svg")
+                if os.path.exists(icon_path):
+                    try:
+                        with open(icon_path, "r", encoding="utf-8") as f:
+                            icon_svg = f.read()
+                    except Exception:
+                        icon_svg = ""
+            icons.append(icon_svg)
 
-        with open('data/logo/KKUNPhI-01.svg', 'r', encoding='utf-8') as file:
-            logo = file.read()
+            # Detail tuple
+            details.append((
+                row.get('DISEASE/TRAIT', ''),
+                row.get('REGION', ''),
+                row.get('SNPS', ''),
+                row.get('MAPPED_GENE', ''),
+                row.get('Groups of Disease/Trait', ''),
+                row.get('MAPPED_TRAIT_DESCRIPTION', '')
+            ))
 
-        summary_text = f"This report includes {len(data['DISEASE/TRAIT'].unique())} unique diseases/traits analyzed."
-        vcf_report = self.vcf_report
-        total_variant = vcf_report.shape[0]
-        type_of_varients = vcf_report['TYPE'].value_counts()
-        type_of_varients_percentage = np.round(type_of_varients / total_variant * 100, decimals=2)
+        # ---------- Variants donut cards (SNP/INS/DEL/COMPLEX) ----------
+        type_counts = self.vcf_report['TYPE'].value_counts()
+        total_variant = int(self.vcf_report.shape[0])
+        type_pct = (type_counts / max(total_variant, 1) * 100).round(2)
 
+        # Ensure all four keys exist
+        for k in ["SNPs", "INS", "DEL", "COMPLEX"]:
+            if k not in type_pct.index:
+                type_pct.loc[k] = 0.0
+                type_counts.loc[k] = 0
 
-        import plotly.graph_objects as go
+        # Order
+        type_pct = type_pct[["SNPs", "INS", "DEL", "COMPLEX"]]
+        type_counts = type_counts[["SNPs", "INS", "DEL", "COMPLEX"]]
 
-        svg_circle = []
+        donut_svgs = []
+        try:
+            import plotly.io as pio  # already imported above, but keep local for clarity
+        except Exception:
+            pio = None
 
-        for i in type_of_varients_percentage.index:
-            # Data for the single progress bar
-            value = type_of_varients_percentage[i]  # Percentage of progress
-            color = {'COMPLEX':'FF9999', 'DEL':'FF7F3E', 'INS':'3D527D', 'SNPs':'FFB854'}  # Custom color for progress
-
-            #description = "DUIS AUTE IRURE DOL ORIN REPREHENDERIT IN VELIT ESSE CILLUM FUGIAT NULLA PARI"
-
-            # Create the pie chart (donut chart)
+        color_map = {'COMPLEX': '#FF9999', 'DEL': '#FF7F3E', 'INS': '#3D527D', 'SNPs': '#FFB854'}
+        for typ in type_pct.index:
+            value = float(type_pct.loc[typ])
             fig2 = go.Figure()
+            fig2.add_trace(go.Pie(values=[value, max(0.0, 100 - value)], hole=0.6,
+                                  marker=dict(colors=[color_map[typ], "rgba(0,0,0,0)"]),
+                                  direction="clockwise", textinfo="none", showlegend=False))
+            fig2.add_trace(go.Pie(values=[max(0.0, 100 - value), value], hole=0.7,
+                                  marker=dict(colors=["lightgray", "rgba(0,0,0,0)"]),
+                                  textinfo="none", showlegend=False))
+            fig2.add_annotation(text=f"<b>{value:.2f}%</b>", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5, font=dict(size=24))
+            fig2.add_annotation(text=f'<b>{int(type_counts.loc[typ]):,} Positions</b>', showarrow=False, xref="paper", yref="paper", x=0.5, y=-0.38, font=dict(size=22))
+            fig2.update_layout(title=f"<b>{typ}</b>", height=400, width=400, showlegend=False,
+                               title_x=0.5, title_y=0.1, font=dict(size=18),
+                               plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            if pio is not None:
+                try:
+                    svg_bytes = pio.to_image(fig2, format="svg")
+                    donut_svgs.append(svg_bytes.decode("utf-8"))
+                except Exception:
+                    donut_svgs.append("<div>Install kaleido to render donut charts (pip install -U kaleido)</div>")
+            else:
+                donut_svgs.append("<div>Install kaleido to render donut charts (pip install -U kaleido)</div>")
 
-            # First (colored) pie chart
-            fig2.add_trace(go.Pie(
-                values=[value, 100 - value],
-                hole=0.6,
-                marker=dict(colors=[color[i], "rgba(0,0,0,0)"]),  # Hide gray part here
-                direction="clockwise",
-                textinfo="none",
-                showlegend=False
-            ))
+        # Summary text
+        if 'Groups of Disease/Trait' in df_sun.columns:
+            df_sun_summary = (df_sun['Groups of Disease/Trait']
+                              .value_counts(normalize=True)
+                              .mul(100).round(2)
+                              .to_dict())
+            total_disease_trait = int(df_sun['Groups of Disease/Trait'].value_counts().sum())
+        else:
+            df_sun_summary, total_disease_trait = {}, 0
 
+        # Logo (optional)
+        logo_svg = ""
+        logo_path = os.path.join('data', 'logo', 'KKUNPhI-01.svg')
+        if os.path.exists(logo_path):
+            try:
+                with open(logo_path, 'r', encoding='utf-8') as f:
+                    logo_svg = f.read()
+            except Exception:
+                logo_svg = ""
 
-            # Second (smaller gray) pie chart
-            fig2.add_trace(go.Pie(
-                values=[100 - value, value],  # Swap values to make gray smaller
-                hole=0.7,  # Slightly larger hole to make it thinner
-                marker=dict(colors=["lightgray", "rgba(0,0,0,0)"]),  # Hide the second color
-                textinfo="none",
-                showlegend=False
-            ))
-
-
-            # Add percentage text inside the donut chart
-            fig2.add_annotation(
-                text=f"<b>{value}%</b>", showarrow=False,
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, font=dict(size=24)
-            )
-
-            # Add label below the chart
-            fig2.add_annotation(
-                text=f'<b>{type_of_varients[i]:,.0f} Positions</b>', showarrow=False,
-                xref="paper", yref="paper",
-                x=0.5, y=-0.38, font=dict(size=22)
-            )
-
-            # Layout adjustments
-            fig2.update_layout(
-                title=f"<b>{i}</b>",
-                height=400, width=400,
-                showlegend=False
-            )
-
-            #Set title to center and below of the chart
-            fig2.update_layout(
-                title_x=0.5,
-                title_y=0.1,
-                font=dict(size=18)
-            )
-
-            #Background transparency
-            fig2.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
-
-            # Display the figure
-            svg_bytes = pio.to_image(fig2, format="svg")
-            svg_string = svg_bytes.decode("utf-8")  # Convert bytes to string
-            svg_circle.append(svg_string)
-
-            df_sun_summary = np.round(df_sun['Groups of Disease/Trait'].value_counts(normalize=True) * 100, decimals=2).to_dict()
-            total_disease_trait = df_sun['Groups of Disease/Trait'].value_counts().sum()
-
-
-        # HTML Template
+        # HTML Template (your original, unchanged)
         html_template = r"""
             <!DOCTYPE html>
             <html lang="en">
@@ -1029,43 +1011,35 @@ class MapGWASSNPs:
             </html>
         """
 
+        # Render
         template = Template(html_template)
-        rendered_html = template.render(data_source=zip(details, embedded_svgs, icon), count_variant=f'{total_variant:,.0f}',
-                                        variant_1 = svg_circle[0], variant_2 = svg_circle[1], variant_3 = svg_circle[2], variant_4 = svg_circle[3],
-                                        logo_=logo,
-                                        sun_plot_ = sun_plot,
-                                        disease_trait_summary = df_sun_summary, total_disease_trait_ = total_disease_trait)
+        rendered_html = template.render(
+            data_source=zip(details, embedded_svgs, icons),
+            count_variant=f'{total_variant:,.0f}',
+            variant_1=donut_svgs[0], variant_2=donut_svgs[1],
+            variant_3=donut_svgs[2], variant_4=donut_svgs[3],
+            logo_=logo_svg,
+            sun_plot_=sun_plot_json,
+            disease_trait_summary=df_sun_summary,
+            total_disease_trait_=total_disease_trait
+        )
 
-        with open(output_path, 'w') as f:
+        os.makedirs(self.report_path, exist_ok=True)
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(rendered_html)
 
-        #print(f"Report saved to {output_path}")
+        print(f"Report saved to {output_path}")
 
     def generate_report(self):
         self.prepare_report_data()
         self.generate_html_report()
-        print(f"Report saved to {os.path.join(self.report_path, 'GWAS_report.html')}")
 
 if __name__ == '__main__':
-    barcode = 'bc24'
-    vcf_file = f"medaka/{barcode}/medaka.annotated.vcf"
-    #gwas_file = "https://raw.githubusercontent.com/aeiwz/wgs-report-tools/master/data/gwas_database_with_description_expanded.csv.gz"
+    barcode = 'bc01'
+    vcf_file = f"medaka/sort-medaka-{barcode}/medaka.sorted.vcf"
     gwas_file = "data/gwas_database_with_description_expanded.csv.gz"
     output_file = f"medaka/{barcode}"
 
-    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=20, filt_nr_disease=True)
+    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=60, filt_nr_disease=True)
     mapper.map_snps()
     mapper.generate_report()
-
-
-
-'''
-                            <div class="summary_text">
-                                <h3> Total {{total_disease_trait_}} Disease/Trait</h3>
-                                <div class="position_inside">
-                                    {% for key, value in disease_trait_summary.items() %}
-                                    <p><b>{{ key }}:</b> {{ value }} %</p>
-                                    {% endfor %}
-                                </div>
-                            </div>
-'''

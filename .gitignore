@@ -11,3 +11,10 @@ test/report/GWAS_report.html
 test/report/GWAS_report.html
 test/report/GWAS_report.html
 SNPs detection barcode 19-24.zip
+medaka/bc01/report/data/in-house_report.csv
+medaka/bc01/report/data/report_data.csv
+medaka/bc01/report/GWAS_report.html
+medaka/sort-medaka-bc01/medaka.sorted copy.vcf
+medaka/sort-medaka-bc01/medaka.sorted.vcf
+medaka/sort-medaka-bc02/medaka.sorted.vcf
+test.ipynb
