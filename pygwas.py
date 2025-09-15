@@ -151,6 +151,8 @@ class MapGWASSNPs:
 
         # Compute standardized percentage column
         rep['RAF (%)'] = self._to_numeric_safe(rep['RISK ALLELE FREQUENCY']) * 100.0
+        rep['RAF (%)'] = np.where(rep['RAF (%)'] > 100, 100, rep['RAF (%)'])
+        rep['RAF (%)'] = np.where(rep['RAF (%)'] < 0, 0, rep['RAF (%)'])  # optional lower bound
         rep.dropna(subset=['RAF (%)'], inplace=True)
         rep.sort_values(by='RAF (%)', ascending=False, inplace=True)
 
@@ -1035,11 +1037,11 @@ class MapGWASSNPs:
         self.generate_html_report()
 
 if __name__ == '__main__':
-    barcode = 'bc01'
+    barcode = 'bc02'
     vcf_file = f"medaka/sort-medaka-{barcode}/medaka.sorted.vcf"
     gwas_file = "data/gwas_database_with_description_expanded.csv.gz"
     output_file = f"medaka/{barcode}"
 
-    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=60, filt_nr_disease=True)
+    mapper = MapGWASSNPs(vcf_file, gwas_file, output_file, cut_off_qual=50, filt_nr_disease=True)
     mapper.map_snps()
     mapper.generate_report()
