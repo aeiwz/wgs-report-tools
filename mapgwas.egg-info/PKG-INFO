@@ -1,0 +1,44 @@
+Metadata-Version: 2.4
+Name: mapgwas
+Version: 0.1.0
+Summary: Map in-house VCF variants to GWAS catalog and generate an interactive HTML report.
+Author-email: KKUNPhI <noreply@example.org>
+License: MIT License
+Keywords: GWAS,VCF,genomics,bioinformatics,report
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pandas>=2.0
+Requires-Dist: numpy>=1.24
+Requires-Dist: plotly>=5.0
+Requires-Dist: jinja2>=3.1
+Provides-Extra: export
+Requires-Dist: kaleido>=0.2.1; extra == "export"
+Dynamic: license-file
+
+
+# **mapgwas**
+
+MapGWASSNPs — tool to:
+1. Read a VCF  
+2. Intersect with a GWAS catalog file  
+3. Produce a polished **interactive HTML report**
+
+---
+
+## **Installation**
+```bash
+pip install .
+# or for dev
+pip install -e .
+
+
+# **Usage Guide**
+
+Quick start:
+```bash
+mapgwas --vcf input.vcf --gwas gwas.csv.gz --out outdir --qual-cutoff 50

@@ -8,6 +8,10 @@ import plotly.express as px
 from jinja2 import Template
 
 class MapGWASSNPs:
+
+    '''
+    
+    '''
     def __init__(self, vcf_file_path: str, gwas_file_path: str, output_file_path: str,
                  cut_off_qual: int = 20, filt_nr_disease: bool = True):
         self.vcf_file = vcf_file_path

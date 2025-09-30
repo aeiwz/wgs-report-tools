@@ -1,0 +1,16 @@
+LICENSE
+README.md
+pyproject.toml
+mapgwas.egg-info/PKG-INFO
+mapgwas.egg-info/SOURCES.txt
+mapgwas.egg-info/dependency_links.txt
+mapgwas.egg-info/entry_points.txt
+mapgwas.egg-info/requires.txt
+mapgwas.egg-info/top_level.txt
+pygwas/__init__.py
+pygwas/__main__.py
+pygwas/cli.py
+pygwas/expand_replicate_chr.py
+pygwas/get_descriptions.py
+pygwas/pygwas.py
+tests/test_import.py

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mapgwas"
+version = "0.1.0"
+description = "Map in-house VCF variants to GWAS catalog and generate an interactive HTML report."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT License"}
+authors = [
+  { name="KKUNPhI", email="noreply@example.org" }
+]
+keywords = ["GWAS", "VCF", "genomics", "bioinformatics", "report"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+
+dependencies = [
+  "pandas>=2.0",
+  "numpy>=1.24",
+  "plotly>=5.0",
+  "jinja2>=3.1"
+]
+
+[project.optional-dependencies]
+export = ["kaleido>=0.2.1"]
+
+[project.scripts]
+mapgwas = "pygwaspip.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
